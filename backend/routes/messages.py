@@ -7,6 +7,7 @@ from flask import Blueprint, request, jsonify
 from flask_login import current_user
 from backend.services.message_service import MessageService
 from backend.middleware.auth import login_required
+from backend.extensions import limiter
 
 # Create messages blueprint
 messages_bp = Blueprint('messages', __name__)
@@ -113,6 +114,7 @@ def get_thread_messages(thread_id):
 
 @messages_bp.route('', methods=['POST'])
 @login_required
+@limiter.limit("30 per hour")
 def send_message():
     """
     Send a new message.

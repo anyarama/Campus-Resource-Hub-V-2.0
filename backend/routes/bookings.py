@@ -8,6 +8,7 @@ from flask_login import current_user
 from datetime import datetime
 from backend.services.booking_service import BookingService
 from backend.middleware.auth import login_required
+from backend.extensions import limiter
 
 # Create bookings blueprint
 bookings_bp = Blueprint('bookings', __name__)
@@ -15,6 +16,7 @@ bookings_bp = Blueprint('bookings', __name__)
 
 @bookings_bp.route('', methods=['POST'])
 @login_required
+@limiter.limit("10 per hour")
 def create_booking():
     """
     Create a new booking.

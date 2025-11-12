@@ -23,9 +23,16 @@ class Config:
     SQLALCHEMY_ECHO = False
     
     # Security
-    # Disable CSRF for REST API - use CORS instead for frontend security
-    WTF_CSRF_ENABLED = False
-    WTF_CSRF_TIME_LIMIT = None  # No time limit on CSRF tokens
+    # Enable CSRF protection for all requests
+    WTF_CSRF_ENABLED = True
+    WTF_CSRF_TIME_LIMIT = 3600  # 1 hour CSRF token lifetime
+    WTF_CSRF_CHECK_DEFAULT = True  # Check CSRF on all POST/PUT/DELETE
+    WTF_CSRF_METHODS = ['POST', 'PUT', 'DELETE', 'PATCH']
+    WTF_CSRF_HEADERS = ['X-CSRFToken', 'X-CSRF-Token']  # Accept CSRF token in headers
+    
+    # Security Headers (Talisman) Settings
+    TALISMAN_FORCE_HTTPS = False  # Set to True in production
+    
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = 'Lax'
     REMEMBER_COOKIE_HTTPONLY = True
@@ -95,6 +102,7 @@ class ProductionConfig(Config):
         SQLALCHEMY_DATABASE_URI = SQLALCHEMY_DATABASE_URI.replace('postgres://', 'postgresql://', 1)
     
     # Strict security in production
+    TALISMAN_FORCE_HTTPS = True  # Enforce HTTPS in production
     SESSION_COOKIE_SECURE = True
     REMEMBER_COOKIE_SECURE = True
     SESSION_COOKIE_SAMESITE = 'Strict'
@@ -102,8 +110,70 @@ class ProductionConfig(Config):
     def __init__(self):
         """Validate production configuration on initialization."""
         super().__init__()
-        if not os.environ.get('SECRET_KEY'):
-            raise ValueError("SECRET_KEY environment variable must be set in production")
+        
+        # Enhanced production validation
+        self._validate_production_secrets()
+    
+    def _validate_production_secrets(self):
+        """Validate critical production secrets and configuration."""
+        errors = []
+        
+        # Validate SECRET_KEY
+        secret_key = os.environ.get('SECRET_KEY')
+        if not secret_key:
+            errors.append("SECRET_KEY environment variable must be set in production")
+        elif len(secret_key) < 64:
+            errors.append(
+                f"SECRET_KEY is too short for production (minimum 64 characters, got {len(secret_key)}). "
+                f"Generate with: python -c \"import secrets; print(secrets.token_hex(32))\""
+            )
+        
+        # Check for weak secret patterns
+        if secret_key:
+            weak_patterns = ['dev', 'test', 'demo', 'example', 'changeme', 'default']
+            secret_lower = secret_key.lower()
+            for pattern in weak_patterns:
+                if pattern in secret_lower:
+                    errors.append(
+                        f"SECRET_KEY contains weak pattern '{pattern}'. "
+                        f"Use a cryptographically random key for production."
+                    )
+        
+        # Validate DATABASE_URL
+        database_url = os.environ.get('DATABASE_URL')
+        if not database_url:
+            errors.append("DATABASE_URL environment variable must be set in production")
+        elif database_url.startswith('sqlite'):
+            errors.append(
+                "SQLite is not recommended for production. "
+                "Use PostgreSQL, MySQL, or another production-grade database."
+            )
+        
+        # Validate CORS_ORIGINS
+        cors_origins = os.environ.get('CORS_ORIGINS', self.CORS_ORIGINS)
+        if isinstance(cors_origins, str):
+            origins = cors_origins.split(',')
+        else:
+            origins = cors_origins
+        
+        for origin in origins:
+            origin = origin.strip()
+            if 'localhost' in origin or '127.0.0.1' in origin:
+                errors.append(
+                    f"Production CORS_ORIGINS should not include localhost: {origin}"
+                )
+            if origin.startswith('http://') and 'localhost' not in origin:
+                errors.append(
+                    f"Production CORS_ORIGINS should use HTTPS: {origin}"
+                )
+        
+        # Raise error if any validation failed
+        if errors:
+            error_message = "\n❌ PRODUCTION CONFIGURATION ERRORS:\n" + "\n".join(
+                f"  - {error}" for error in errors
+            )
+            error_message += "\n\nPlease fix these issues before deploying to production."
+            raise ValueError(error_message)
 
 
 # Configuration dictionary

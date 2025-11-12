@@ -41,9 +41,9 @@ class BookingRepository:
             requester_id=requester_id,
             start_datetime=start_datetime,
             end_datetime=end_datetime,
-            notes=notes,
-            status='pending'
+            notes=notes
         )
+        # Status defaults to 'pending' in the model
         
         db.session.add(booking)
         db.session.commit()

@@ -7,6 +7,7 @@ from flask import Blueprint, request, jsonify
 from flask_login import current_user
 from backend.services.review_service import ReviewService
 from backend.middleware.auth import login_required
+from backend.extensions import limiter
 
 # Create reviews blueprint
 reviews_bp = Blueprint('reviews', __name__)
@@ -55,6 +56,7 @@ def get_resource_reviews(resource_id):
 
 @reviews_bp.route('', methods=['POST'])
 @login_required
+@limiter.limit("5 per hour")
 def create_review():
     """
     Submit a new review for a resource.

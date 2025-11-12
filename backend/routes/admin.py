@@ -8,6 +8,7 @@ from flask_login import current_user
 from backend.services.admin_service import AdminService
 from backend.services.review_service import ReviewService
 from backend.middleware.auth import admin_required
+from backend.extensions import limiter
 
 # Create admin blueprint
 admin_bp = Blueprint('admin', __name__)
@@ -99,6 +100,7 @@ def get_users():
 
 @admin_bp.route('/users/<int:user_id>/role', methods=['PUT', 'PATCH'])
 @admin_required
+@limiter.limit("100 per hour")
 def update_user_role(user_id):
     """
     Update a user's role.
@@ -173,6 +175,7 @@ def update_user_role(user_id):
 
 @admin_bp.route('/users/<int:user_id>/status', methods=['PUT', 'PATCH'])
 @admin_required
+@limiter.limit("100 per hour")
 def update_user_status(user_id):
     """
     Update a user's account status.
@@ -352,6 +355,7 @@ def get_flagged_reviews():
 
 @admin_bp.route('/reviews/<int:review_id>/hide', methods=['POST'])
 @admin_required
+@limiter.limit("100 per hour")
 def hide_review(review_id):
     """
     Hide a review (moderation action).
@@ -407,6 +411,7 @@ def hide_review(review_id):
 
 @admin_bp.route('/reviews/<int:review_id>/unhide', methods=['POST'])
 @admin_required
+@limiter.limit("100 per hour")
 def unhide_review(review_id):
     """
     Unhide a review (reverse moderation).

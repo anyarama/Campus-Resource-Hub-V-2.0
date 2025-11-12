@@ -9,6 +9,10 @@ from flask_migrate import Migrate
 from flask_login import LoginManager
 from flask_bcrypt import Bcrypt
 from flask_cors import CORS
+from flask_wtf.csrf import CSRFProtect
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from flask_talisman import Talisman
 
 # Initialize extensions
 # These will be configured in the app factory (app.py)
@@ -18,6 +22,13 @@ migrate = Migrate()
 login_manager = LoginManager()
 bcrypt = Bcrypt()
 cors = CORS()
+csrf = CSRFProtect()
+limiter = Limiter(
+    key_func=get_remote_address,
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri="memory://",  # Use memory for development, Redis for production
+    strategy="fixed-window"
+)
 
 
 def init_extensions(app):
@@ -47,6 +58,39 @@ def init_extensions(app):
         supports_credentials=app.config.get('CORS_SUPPORTS_CREDENTIALS', True),
         allow_headers=['Content-Type', 'Authorization', 'X-CSRF-Token'],
         methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH']
+    )
+    
+    # CSRF Protection - Enable for all state-changing requests
+    csrf.init_app(app)
+    
+    # Rate Limiting - Protect against abuse
+    limiter.init_app(app)
+    
+    # Security Headers - Protect against common web vulnerabilities
+    # Configure Talisman with appropriate settings
+    csp = {
+        'default-src': "'self'",
+        'script-src': ["'self'", "'unsafe-inline'"],  # Allow inline scripts for React
+        'style-src': ["'self'", "'unsafe-inline'"],   # Allow inline styles
+        'img-src': ["'self'", 'data:', 'https:'],     # Allow images from data URIs and HTTPS
+        'font-src': ["'self'", 'data:'],
+        'connect-src': ["'self'", 'http://localhost:5173', 'ws://localhost:5173'],  # Allow frontend connections
+    }
+    
+    Talisman(
+        app,
+        force_https=app.config.get('TALISMAN_FORCE_HTTPS', False),  # Disable in development
+        strict_transport_security=True,
+        strict_transport_security_max_age=31536000,  # 1 year
+        content_security_policy=csp,
+        content_security_policy_nonce_in=['script-src'],
+        frame_options='SAMEORIGIN',
+        referrer_policy='strict-origin-when-cross-origin',
+        feature_policy={
+            'geolocation': "'none'",
+            'microphone': "'none'",
+            'camera': "'none'",
+        }
     )
 
 

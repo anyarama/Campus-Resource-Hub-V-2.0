@@ -7,6 +7,7 @@ from flask import Blueprint, request, jsonify
 from flask_login import current_user
 from backend.services.resource_service import ResourceService
 from backend.middleware.auth import login_required, optional_auth
+from backend.extensions import limiter
 
 # Create resources blueprint
 resources_bp = Blueprint('resources', __name__)
@@ -117,6 +118,7 @@ def get_resource(resource_id):
 
 @resources_bp.route('', methods=['POST'])
 @login_required
+@limiter.limit("20 per hour")
 def create_resource():
     """
     Create a new resource.

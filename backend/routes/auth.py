@@ -7,12 +7,14 @@ from flask import Blueprint, request, jsonify
 from flask_login import login_user, logout_user, current_user
 from backend.services.auth_service import AuthService
 from backend.middleware.auth import login_required
+from backend.extensions import limiter
 
 # Create authentication blueprint
 auth_bp = Blueprint('auth', __name__)
 
 
 @auth_bp.route('/register', methods=['POST'])
+@limiter.limit("5 per 15 minutes")
 def register():
     """
     Register a new user account.
@@ -79,6 +81,7 @@ def register():
 
 
 @auth_bp.route('/login', methods=['POST'])
+@limiter.limit("10 per 15 minutes")
 def login():
     """
     Authenticate user and create session.
@@ -249,6 +252,7 @@ def update_current_user():
 
 @auth_bp.route('/change-password', methods=['POST'])
 @login_required
+@limiter.limit("3 per hour")
 def change_password():
     """
     Change current user's password.
@@ -360,4 +364,32 @@ def check_email():
         return jsonify({
             'error': 'Internal Server Error',
             'message': 'An error occurred while checking email'
+        }), 500
+
+
+@auth_bp.route('/csrf-token', methods=['GET'])
+def get_csrf_token():
+    """
+    Get CSRF token for frontend to include in state-changing requests.
+    
+    GET /api/auth/csrf-token
+    
+    Returns:
+        200: CSRF token
+        500: Server error
+    """
+    try:
+        from flask_wtf.csrf import generate_csrf
+        
+        # Generate and return CSRF token
+        csrf_token = generate_csrf()
+        
+        return jsonify({
+            'csrf_token': csrf_token
+        }), 200
+    
+    except Exception as e:
+        return jsonify({
+            'error': 'Internal Server Error',
+            'message': 'An error occurred while generating CSRF token'
         }), 500

@@ -5,9 +5,11 @@ Uses the factory pattern for better testing and modularity.
 """
 
 import os
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
+from flask_wtf.csrf import CSRFError
 from backend.config import get_config
 from backend.extensions import init_extensions
+from backend.utils.logger import logger, get_client_ip
 
 
 def create_app(config_name=None):
@@ -96,6 +98,13 @@ def register_error_handlers(app):
     @app.errorhandler(500)
     def internal_error(error):
         """Handle 500 Internal Server errors."""
+        # Log the error
+        logger.error(f"Internal server error: {str(error)}", extra={
+            'ip_address': get_client_ip(request),
+            'endpoint': request.endpoint,
+            'method': request.method
+        })
+        
         # Rollback database session on error
         from backend.extensions import db
         db.session.rollback()
@@ -132,6 +141,28 @@ def register_error_handlers(app):
             'message': 'The request could not be understood or was missing required parameters.',
             'status': 400
         }), 400
+    
+    @app.errorhandler(CSRFError)
+    def csrf_error(error):
+        """Handle CSRF validation errors."""
+        return jsonify({
+            'error': 'CSRF Validation Failed',
+            'message': 'CSRF token missing or invalid. Please refresh and try again.',
+            'status': 403
+        }), 403
+    
+    @app.errorhandler(429)
+    def ratelimit_error(error):
+        """Handle rate limit exceeded errors."""
+        # Extract rate limit info from error description if available
+        retry_after = getattr(error, 'description', '60 seconds')
+        
+        return jsonify({
+            'error': 'Too Many Requests',
+            'message': f'Rate limit exceeded. Please try again later.',
+            'retry_after': retry_after,
+            'status': 429
+        }), 429
 
 
 # CLI commands for Flask
