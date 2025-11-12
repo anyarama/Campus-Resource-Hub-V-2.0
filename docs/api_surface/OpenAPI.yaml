@@ -1,0 +1,1163 @@
+openapi: 3.0.3
+info:
+  title: Campus Resource Hub API
+  version: 1.0.0
+  description: |
+    RESTful API for the Campus Resource Hub - A university resource booking and management system.
+    
+    **Implementation Status:**
+    - ✅ existing: Backend implemented and functional
+    - ⚠️ partial: Partially implemented
+    - ❌ missing: Not yet implemented
+    
+    **Authentication:** Session-based cookies (Flask-Login)
+    
+    **Base URL:** `/api`
+  contact:
+    name: Campus Resource Hub Team
+    email: support@campusresourcehub.edu
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:5000/api
+    description: Development server
+  - url: https://production-domain.com/api
+    description: Production server (TBD)
+
+tags:
+  - name: Authentication
+    description: User registration, login, and session management
+  - name: Resources
+    description: Resource browsing, search, and CRUD operations
+  - name: Bookings
+    description: Booking creation, approval, and conflict management
+  - name: Messages
+    description: Thread-based messaging system
+  - name: Reviews
+    description: Resource reviews and ratings
+  - name: Admin
+    description: Administrative operations and analytics
+  - name: Health
+    description: System health checks
+
+components:
+  securitySchemes:
+    SessionCookie:
+      type: apiKey
+      in: cookie
+      name: session
+      description: Flask-Login session cookie
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum: [student, staff, admin]
+        department:
+          type: string
+        status:
+          type: string
+          enum: [active, pending, suspended]
+        created_at:
+          type: string
+          format: date-time
+      required: [id, name, email, role]
+
+    Resource:
+      type: object
+      properties:
+        id:
+          type: integer
+        owner_id:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+          enum: [study_room, lab, equipment, facility, vehicle, technology, sports, event_space, other]
+        location:
+          type: string
+        capacity:
+          type: integer
+        images:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+          enum: [draft, published, archived]
+        requires_approval:
+          type: boolean
+        average_rating:
+          type: number
+          format: float
+        review_count:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+      required: [id, title, status]
+
+    Booking:
+      type: object
+      properties:
+        id:
+          type: integer
+        resource_id:
+          type: integer
+        requester_id:
+          type: integer
+        start_datetime:
+          type: string
+          format: date-time
+        end_datetime:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [pending, approved, rejected, cancelled, completed]
+        notes:
+          type: string
+        approval_notes:
+          type: string
+        rejection_reason:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+      required: [id, resource_id, requester_id, start_datetime, end_datetime, status]
+
+    Message:
+      type: object
+      properties:
+        id:
+          type: integer
+        thread_id:
+          type: string
+        sender_id:
+          type: integer
+        receiver_id:
+          type: integer
+        content:
+          type: string
+        is_read:
+          type: boolean
+        timestamp:
+          type: string
+          format: date-time
+      required: [id, sender_id, receiver_id, content]
+
+    Review:
+      type: object
+      properties:
+        id:
+          type: integer
+        resource_id:
+          type: integer
+        reviewer_id:
+          type: integer
+        booking_id:
+          type: integer
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+        comment:
+          type: string
+        is_flagged:
+          type: boolean
+        is_hidden:
+          type: boolean
+        timestamp:
+          type: string
+          format: date-time
+      required: [id, resource_id, reviewer_id, rating]
+
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+        per_page:
+          type: integer
+        total:
+          type: integer
+        total_pages:
+          type: integer
+        has_next:
+          type: boolean
+        has_prev:
+          type: boolean
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+      required: [error, message]
+
+  responses:
+    UnauthorizedError:
+      description: Not authenticated
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ForbiddenError:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFoundError:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+paths:
+  /auth/register:
+    post:
+      tags: [Authentication]
+      summary: Register new user
+      x-status: existing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, password]
+              properties:
+                name:
+                  type: string
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+                role:
+                  type: string
+                  enum: [student, staff, admin]
+                  default: student
+                department:
+                  type: string
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  user:
+                    $ref: '#/components/schemas/User'
+        '400':
+          description: Validation error or email exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/login:
+    post:
+      tags: [Authentication]
+      summary: User login
+      x-status: existing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+                remember_me:
+                  type: boolean
+                  default: false
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  user:
+                    $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /auth/logout:
+    post:
+      tags: [Authentication]
+      summary: User logout
+      x-status: existing
+      security:
+        - SessionCookie: []
+      responses:
+        '200':
+          description: Logout successful
+
+  /auth/me:
+    get:
+      tags: [Authentication]
+      summary: Get current user
+      x-status: existing
+      security:
+        - SessionCookie: []
+      responses:
+        '200':
+          description: Current user profile
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+    
+    patch:
+      tags: [Authentication]
+      summary: Update current user profile
+      x-status: existing
+      security:
+        - SessionCookie: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                department:
+                  type: string
+                profile_image:
+                  type: string
+      responses:
+        '200':
+          description: Profile updated
+
+  /auth/change-password:
+    post:
+      tags: [Authentication]
+      summary: Change password
+      x-status: existing
+      security:
+        - SessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [current_password, new_password]
+              properties:
+                current_password:
+                  type: string
+                new_password:
+                  type: string
+      responses:
+        '200':
+          description: Password changed successfully
+
+  /resources:
+    get:
+      tags: [Resources]
+      summary: List resources with pagination and filters
+      x-status: existing
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [draft, published, archived]
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: location
+          in: query
+          schema:
+            type: string
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+      responses:
+        '200':
+          description: List of resources
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  resources:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Resource'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+    
+    post:
+      tags: [Resources]
+      summary: Create new resource
+      x-status: existing
+      security:
+        - SessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title]
+              properties:
+                title:
+                  type: string
+                description:
+                  type: string
+                category:
+                  type: string
+                location:
+                  type: string
+                capacity:
+                  type: integer
+                requires_approval:
+                  type: boolean
+                  default: true
+                status:
+                  type: string
+                  enum: [draft, published]
+                  default: draft
+      responses:
+        '201':
+          description: Resource created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  resource:
+                    $ref: '#/components/schemas/Resource'
+
+  /resources/{id}:
+    get:
+      tags: [Resources]
+      summary: Get resource by ID
+      x-status: existing
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Resource details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Resource'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    
+    put:
+      tags: [Resources]
+      summary: Update resource
+      x-status: existing
+      security:
+        - SessionCookie: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                description:
+                  type: string
+                capacity:
+                  type: integer
+      responses:
+        '200':
+          description: Resource updated
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+    
+    delete:
+      tags: [Resources]
+      summary: Delete resource
+      x-status: existing
+      security:
+        - SessionCookie: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Resource deleted
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /resources/search:
+    get:
+      tags: [Resources]
+      summary: Search resources
+      x-status: existing
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  query:
+                    type: string
+                  count:
+                    type: integer
+                  results:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Resource'
+
+  /resources/categories:
+    get:
+      tags: [Resources]
+      summary: Get available categories
+      x-status: existing
+      responses:
+        '200':
+          description: List of categories
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  categories:
+                    type: array
+                    items:
+                      type: string
+
+  /bookings:
+    get:
+      tags: [Bookings]
+      summary: List user's bookings
+      x-status: existing
+      security:
+        - SessionCookie: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of bookings
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  bookings:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Booking'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+    
+    post:
+      tags: [Bookings]
+      summary: Create new booking
+      x-status: existing
+      security:
+        - SessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [resource_id, start_datetime, end_datetime]
+              properties:
+                resource_id:
+                  type: integer
+                start_datetime:
+                  type: string
+                  format: date-time
+                end_datetime:
+                  type: string
+                  format: date-time
+                notes:
+                  type: string
+      responses:
+        '201':
+          description: Booking created
+        '409':
+          description: Conflict (time slot unavailable)
+
+  /bookings/{id}:
+    get:
+      tags: [Bookings]
+      summary: Get booking details
+      x-status: existing
+      security:
+        - SessionCookie: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Booking details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+
+  /bookings/{id}/approve:
+    post:
+      tags: [Bookings]
+      summary: Approve booking (staff/admin only)
+      x-status: existing
+      security:
+        - SessionCookie: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                approval_notes:
+                  type: string
+      responses:
+        '200':
+          description: Booking approved
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /bookings/{id}/reject:
+    post:
+      tags: [Bookings]
+      summary: Reject booking (staff/admin only)
+      x-status: existing
+      security:
+        - SessionCookie: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rejection_reason]
+              properties:
+                rejection_reason:
+                  type: string
+      responses:
+        '200':
+          description: Booking rejected
+
+  /bookings/{id}/cancel:
+    post:
+      tags: [Bookings]
+      summary: Cancel booking
+      x-status: existing
+      security:
+        - SessionCookie: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                cancellation_reason:
+                  type: string
+      responses:
+        '200':
+          description: Booking cancelled
+
+  /bookings/check-availability:
+    post:
+      tags: [Bookings]
+      summary: Check resource availability
+      x-status: existing
+      security:
+        - SessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [resource_id, start_datetime, end_datetime]
+              properties:
+                resource_id:
+                  type: integer
+                start_datetime:
+                  type: string
+                  format: date-time
+                end_datetime:
+                  type: string
+                  format: date-time
+      responses:
+        '200':
+          description: Availability status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  available:
+                    type: boolean
+                  message:
+                    type: string
+
+  /messages:
+    get:
+      tags: [Messages]
+      summary: List message threads
+      x-status: existing
+      security:
+        - SessionCookie: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of threads
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  threads:
+                    type: array
+                    items:
+                      type: object
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+    
+    post:
+      tags: [Messages]
+      summary: Send message
+      x-status: existing
+      security:
+        - SessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [receiver_id, content]
+              properties:
+                receiver_id:
+                  type: integer
+                content:
+                  type: string
+                resource_id:
+                  type: integer
+      responses:
+        '201':
+          description: Message sent
+
+  /messages/thread/{threadId}:
+    get:
+      tags: [Messages]
+      summary: Get thread messages
+      x-status: existing
+      security:
+        - SessionCookie: []
+      parameters:
+        - name: threadId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Thread messages
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  messages:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Message'
+
+  /messages/unread-count:
+    get:
+      tags: [Messages]
+      summary: Get unread message count
+      x-status: existing
+      security:
+        - SessionCookie: []
+      responses:
+        '200':
+          description: Unread count
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  unread_count:
+                    type: integer
+
+  /reviews:
+    post:
+      tags: [Reviews]
+      summary: Submit review
+      x-status: existing
+      security:
+        - SessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [resource_id, rating]
+              properties:
+                resource_id:
+                  type: integer
+                booking_id:
+                  type: integer
+                rating:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+                comment:
+                  type: string
+      responses:
+        '201':
+          description: Review submitted
+
+  /resources/{id}/reviews:
+    get:
+      tags: [Reviews]
+      summary: Get resource reviews
+      x-status: existing
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: page
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of reviews
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reviews:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Review'
+                  average_rating:
+                    type: number
+                  total_reviews:
+                    type: integer
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+
+  /admin/analytics:
+    get:
+      tags: [Admin]
+      summary: Get system analytics (admin only)
+      x-status: existing
+      security:
+        - SessionCookie: []
+      responses:
+        '200':
+          description: System analytics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  users:
+                    type: object
+                  resources:
+                    type: object
+                  bookings:
+                    type: object
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /admin/users:
+    get:
+      tags: [Admin]
+      summary: List all users (admin only)
+      x-status: existing
+      security:
+        - SessionCookie: []
+      parameters:
+        - name: role
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  users:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/User'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+
+  /admin/users/{id}/role:
+    put:
+      tags: [Admin]
+      summary: Update user role (admin only)
+      x-status: existing
+      security:
+        - SessionCookie: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [role]
+              properties:
+                role:
+                  type: string
+                  enum: [student, staff, admin]
+      responses:
+        '200':
+          description: Role updated
+
+  /admin/reviews/flagged:
+    get:
+      tags: [Admin]
+      summary: Get flagged reviews (admin only)
+      x-status: existing
+      security:
+        - SessionCookie: []
+      responses:
+        '200':
+          description: Flagged reviews
+
+  /health:
+    get:
+      tags: [Health]
+      summary: API health check
+      x-status: existing
+      responses:
+        '200':
+          description: API is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  timestamp:
+                    type: string
+
+  /health/db:
+    get:
+      tags: [Health]
+      summary: Database health check
+      x-status: existing
+      responses:
+        '200':
+          description: Database is healthy
+
+  /ai/concierge:
+    post:
+      tags: [AI Features]
+      summary: AI Concierge chatbot (AiDD requirement)
+      x-status: missing
+      description: RAG-based chatbot for resource questions
+      security:
+        - SessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [query]
+              properties:
+                query:
+                  type: string
+                context:
+                  type: object
+      responses:
+        '200':
+          description: AI response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  response:
+                    type: string
+                  sources:
+                    type: array
+                    items:
+                      type: string
+        '501':
+          description: Not implemented
+
+  /ai/schedule-suggest:
+    post:
+      tags: [AI Features]
+      summary: AI Scheduler suggestions (AiDD requirement)
+      x-status: missing
+      description: Suggests optimal booking times based on patterns
+      security:
+        - SessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [resource_id]
+              properties:
+                resource_id:
+                  type: integer
+                duration_minutes:
+                  type: integer
+      responses:
+        '200':
+          description: Suggested time slots
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  suggestions:
+                    type: array
+                    items:
+                      type: object
+        '501':
+          description: Not implemented
