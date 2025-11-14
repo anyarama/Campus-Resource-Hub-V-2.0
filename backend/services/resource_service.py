@@ -5,9 +5,9 @@ Handles validation, permissions, and resource operations.
 """
 
 from typing import Optional, List, Tuple, Dict, Any
-from backend.data_access.resource_repository import ResourceRepository
-from backend.models.resource import Resource
-from backend.models.user import User
+from data_access.resource_repository import ResourceRepository
+from models.resource import Resource
+from models.user import User
 
 
 class ResourceService:
@@ -21,7 +21,7 @@ class ResourceService:
     
     # Valid categories (can be extended)
     VALID_CATEGORIES = {
-        'study_room', 'equipment', 'facility', 'vehicle',
+        'study_room', 'meeting_room', 'equipment', 'facility', 'vehicle',
         'technology', 'sports', 'event_space', 'other'
     }
     
@@ -218,7 +218,9 @@ class ResourceService:
         total = ResourceRepository.count(
             status=status,
             category=category,
-            owner_id=owner_id
+            owner_id=owner_id,
+            search=search,
+            location=location
         )
         
         # Calculate pagination info

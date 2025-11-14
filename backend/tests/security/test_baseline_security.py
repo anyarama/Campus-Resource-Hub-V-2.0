@@ -16,10 +16,10 @@ import pytest
 import json
 import time
 from flask import session
-from backend.app import create_app
-from backend.extensions import db
-from backend.models.user import User
-from backend.models.resource import Resource
+from app import create_app
+from extensions import db
+from models.user import User
+from models.resource import Resource
 
 
 @pytest.fixture

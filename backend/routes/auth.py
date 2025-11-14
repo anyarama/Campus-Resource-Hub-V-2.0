@@ -3,18 +3,18 @@ Authentication Routes
 Handles user registration, login, logout, and profile endpoints.
 """
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from flask_login import login_user, logout_user, current_user
-from backend.services.auth_service import AuthService
-from backend.middleware.auth import login_required
-from backend.extensions import limiter
+from services.auth_service import AuthService
+from middleware.auth import login_required
+from extensions import limiter
 
 # Create authentication blueprint
 auth_bp = Blueprint('auth', __name__)
 
 
 @auth_bp.route('/register', methods=['POST'])
-@limiter.limit("5 per 15 minutes")
+@limiter.limit(lambda: current_app.config['AUTH_REGISTRATION_RATE_LIMIT'])
 def register():
     """
     Register a new user account.
@@ -81,7 +81,7 @@ def register():
 
 
 @auth_bp.route('/login', methods=['POST'])
-@limiter.limit("10 per 15 minutes")
+@limiter.limit(lambda: current_app.config['AUTH_LOGIN_RATE_LIMIT'])
 def login():
     """
     Authenticate user and create session.
@@ -128,15 +128,26 @@ def login():
         # Create session using Flask-Login
         login_user(user, remember=remember_me)
         
+        # Get user dict before any potential session issues
+        user_data = user.to_dict(include_email=True)
+        
         return jsonify({
             'message': 'Login successful',
-            'user': user.to_dict(include_email=True)
+            'user': user_data
         }), 200
     
     except Exception as e:
+        # Log the actual error for debugging
+        import traceback
+        print(f"Login error: {str(e)}")
+        print(traceback.format_exc())
+        
+        from extensions import db
+        db.session.rollback()
+        
         return jsonify({
             'error': 'Internal Server Error',
-            'message': 'An error occurred during login'
+            'message': f'An error occurred during login: {str(e)}'
         }), 500
 
 
@@ -352,7 +363,7 @@ def check_email():
             }), 200
         
         # Check if exists
-        from backend.data_access.user_repository import UserRepository
+        from data_access.user_repository import UserRepository
         exists = UserRepository.exists_by_email(email)
         
         return jsonify({

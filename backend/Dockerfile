@@ -23,17 +23,17 @@ COPY requirements.txt ./requirements.txt
 # Install Python dependencies as root (needed for system-wide installation)
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code into backend subdirectory to maintain import structure
-COPY . ./backend/
+# Copy application code (files are already in backend dir, so copy to /app directly)
+COPY . ./
 
 # Create necessary directories with proper permissions
-RUN mkdir -p backend/instance backend/static/uploads backend/logs && \
+RUN mkdir -p instance static/uploads logs && \
     chown -R appuser:appuser /app && \
     chmod -R 755 /app && \
-    chmod -R 775 backend/instance backend/static/uploads backend/logs
+    chmod -R 775 instance static/uploads logs
 
 # Set environment variables  
-ENV FLASK_APP=backend.app:app
+ENV FLASK_APP=app:app
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH=/app:$PYTHONPATH
 

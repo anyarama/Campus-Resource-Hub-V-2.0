@@ -7,13 +7,13 @@ Handles user management, analytics, and system-wide operations.
 from typing import Optional, Tuple, Dict, Any
 from datetime import datetime, timedelta
 from sqlalchemy import func
-from backend.extensions import db
-from backend.models.user import User
-from backend.models.resource import Resource
-from backend.models.booking import Booking
-from backend.models.message import Message
-from backend.models.review import Review
-from backend.data_access.user_repository import UserRepository
+from extensions import db
+from models.user import User
+from models.resource import Resource
+from models.booking import Booking
+from models.message import Message
+from models.review import Review
+from data_access.user_repository import UserRepository
 
 
 class AdminService:

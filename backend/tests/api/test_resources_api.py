@@ -14,10 +14,10 @@ Tests cover:
 
 import pytest
 from flask import session
-from backend.app import create_app
-from backend.extensions import db
-from backend.models.user import User
-from backend.models.resource import Resource
+from app import create_app
+from extensions import db
+from models.user import User
+from models.resource import Resource
 
 
 @pytest.fixture
@@ -45,9 +45,9 @@ def student_user(app):
         user = User(
             name='Student User',
             email='student@example.com',
+            password='StudentPass123',
             role='student'
         )
-        user.set_password('StudentPass123')
         db.session.add(user)
         db.session.commit()
         
@@ -65,9 +65,9 @@ def staff_user(app):
         user = User(
             name='Staff User',
             email='staff@example.com',
+            password='StaffPass123',
             role='staff'
         )
-        user.set_password('StaffPass123')
         db.session.add(user)
         db.session.commit()
         
@@ -85,9 +85,9 @@ def admin_user(app):
         user = User(
             name='Admin User',
             email='admin@example.com',
+            password='AdminPass123',
             role='admin'
         )
-        user.set_password('AdminPass123')
         db.session.add(user)
         db.session.commit()
         
@@ -129,6 +129,61 @@ def sample_resource_data():
         'requires_approval': True,
         'status': 'draft'
     }
+
+
+@pytest.fixture
+def seeded_resources(app):
+    """Seed the database with published resources for filtering tests."""
+    with app.app_context():
+        owner = User(
+            name='Owner',
+            email='owner@example.com',
+            password='OwnerPass123',
+            role='staff'
+        )
+        db.session.add(owner)
+        db.session.flush()
+
+        resources = []
+        sample_data = [
+            {
+                'title': 'Library Study Room',
+                'description': 'Quiet room in main library',
+                'category': 'study_room',
+                'location': 'Library East Wing',
+                'capacity': 6
+            },
+            {
+                'title': 'Library Collaboration Space',
+                'description': 'Group space with display',
+                'category': 'study_room',
+                'location': 'Library West Wing',
+                'capacity': 10
+            },
+            {
+                'title': 'Engineering Lab',
+                'description': 'Hands-on engineering lab',
+                'category': 'technology',
+                'location': 'Engineering Building',
+                'capacity': 20
+            },
+        ]
+
+        for entry in sample_data:
+            resource = Resource(
+                owner_id=owner.id,
+                title=entry['title'],
+                description=entry['description'],
+                category=entry['category'],
+                location=entry['location'],
+                capacity=entry['capacity']
+            )
+            resource.status = 'published'
+            db.session.add(resource)
+            resources.append(resource)
+
+        db.session.commit()
+        yield resources
 
 
 class TestListResourcesEndpoint:
@@ -200,6 +255,33 @@ class TestListResourcesEndpoint:
         assert response.status_code == 200
         data = response.get_json()
         assert 'resources' in data
+
+    def test_list_resources_search_filters_results(self, client, seeded_resources):
+        """Search filter should affect both results and pagination totals."""
+        response = client.get('/api/resources?search=library')
+        assert response.status_code == 200
+        data = response.get_json()
+        # Two library resources seeded
+        assert data['pagination']['total'] == 2
+        assert len(data['resources']) == 2
+
+    def test_list_resources_location_filter(self, client, seeded_resources):
+        """Location filter should narrow the dataset."""
+        response = client.get('/api/resources?location=Engineering')
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['pagination']['total'] == 1
+        assert len(data['resources']) == 1
+
+    def test_list_resources_search_pagination(self, client, seeded_resources):
+        """Pagination metadata should remain consistent with filtered totals."""
+        response = client.get('/api/resources?search=library&per_page=1&page=2')
+        assert response.status_code == 200
+        data = response.get_json()
+        pagination = data['pagination']
+        assert pagination['total'] == 2
+        assert pagination['per_page'] == 1
+        assert pagination['page'] == 2
 
 
 class TestGetResourceEndpoint:

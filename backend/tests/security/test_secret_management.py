@@ -6,8 +6,8 @@ Tests for secrets validation and secure configuration management.
 import pytest
 import os
 from unittest.mock import patch
-from backend.utils.secrets_validator import SecretsValidator
-from backend.config import ProductionConfig, DevelopmentConfig, TestingConfig
+from utils.secrets_validator import SecretsValidator
+from config import ProductionConfig, DevelopmentConfig, TestingConfig
 
 
 class TestSecretsValidatorSecretKey:

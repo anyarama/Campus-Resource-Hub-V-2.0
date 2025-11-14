@@ -6,10 +6,13 @@ import { CheckIcon } from "lucide-react@0.487.0";
 
 import { cn } from "./utils";
 
+type CheckboxProps = React.ComponentProps<typeof CheckboxPrimitive.Root>;
+
 function Checkbox({
   className,
+  style,
   ...props
-}: React.ComponentProps<typeof CheckboxPrimitive.Root>) {
+}: CheckboxProps) {
   return (
     <CheckboxPrimitive.Root
       data-slot="checkbox"
@@ -17,6 +20,13 @@ function Checkbox({
         "peer border bg-input-background dark:bg-input/30 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground dark:data-[state=checked]:bg-primary data-[state=checked]:border-primary focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive size-4 shrink-0 rounded-[4px] border shadow-xs transition-shadow outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50",
         className,
       )}
+      style={{
+        width: "18px",
+        height: "18px",
+        borderWidth: "1.5px",
+        backgroundColor: "var(--color-bg-default)",
+        ...style,
+      }}
       {...props}
     >
       <CheckboxPrimitive.Indicator

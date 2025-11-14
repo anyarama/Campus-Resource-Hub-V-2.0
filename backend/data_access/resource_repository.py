@@ -7,9 +7,9 @@ Handles all database queries and operations for resources.
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 from sqlalchemy import or_, and_
-from backend.extensions import db
-from backend.models.resource import Resource
-from backend.models.user import User
+from extensions import db
+from models.resource import Resource
+from models.user import User
 
 
 class ResourceRepository:
@@ -49,9 +49,11 @@ class ResourceRepository:
             category=category,
             location=location,
             capacity=capacity,
-            requires_approval=requires_approval,
-            status=status
+            requires_approval=requires_approval
         )
+        
+        # Set status after creation (not in __init__)
+        resource.status = status
         
         if images:
             resource.set_images(images)
@@ -77,28 +79,10 @@ class ResourceRepository:
         return Resource.query.get(resource_id)
     
     @staticmethod
-    def get_all(status: Optional[str] = None, category: Optional[str] = None,
-                owner_id: Optional[int] = None, limit: Optional[int] = None,
-                offset: int = 0, search: Optional[str] = None,
-                location: Optional[str] = None) -> List[Resource]:
-        """
-        Retrieve all resources with optional filtering.
-        
-        Args:
-            status: Filter by status ('draft', 'published', 'archived')
-            category: Filter by category
-            owner_id: Filter by owner ID
-            limit: Maximum number of resources to return
-            offset: Number of resources to skip (for pagination)
-            search: Search term for title and description
-            location: Filter by location
-        
-        Returns:
-            List[Resource]: List of resource objects
-        """
-        query = Resource.query
-        
-        # Apply filters
+    def _apply_filters(query, status: Optional[str] = None, category: Optional[str] = None,
+                       owner_id: Optional[int] = None, search: Optional[str] = None,
+                       location: Optional[str] = None):
+        """Apply common filters to a SQLAlchemy query."""
         if status:
             query = query.filter_by(status=status)
         
@@ -118,10 +102,27 @@ class ResourceRepository:
             )
             query = query.filter(search_filter)
         
-        # Order by creation date (newest first)
+        return query
+    
+    @staticmethod
+    def get_all(status: Optional[str] = None, category: Optional[str] = None,
+                owner_id: Optional[int] = None, limit: Optional[int] = None,
+                offset: int = 0, search: Optional[str] = None,
+                location: Optional[str] = None) -> List[Resource]:
+        """
+        Retrieve all resources with optional filtering.
+        """
+        query = ResourceRepository._apply_filters(
+            Resource.query,
+            status=status,
+            category=category,
+            owner_id=owner_id,
+            search=search,
+            location=location
+        )
+        
         query = query.order_by(Resource.created_at.desc())
         
-        # Apply pagination
         if offset:
             query = query.offset(offset)
         
@@ -240,28 +241,19 @@ class ResourceRepository:
     
     @staticmethod
     def count(status: Optional[str] = None, category: Optional[str] = None,
-              owner_id: Optional[int] = None) -> int:
+              owner_id: Optional[int] = None, search: Optional[str] = None,
+              location: Optional[str] = None) -> int:
         """
         Count resources with optional filtering.
-        
-        Args:
-            status: Filter by status
-            category: Filter by category
-            owner_id: Filter by owner ID
-        
-        Returns:
-            int: Number of resources matching criteria
         """
-        query = Resource.query
-        
-        if status:
-            query = query.filter_by(status=status)
-        
-        if category:
-            query = query.filter_by(category=category)
-        
-        if owner_id:
-            query = query.filter_by(owner_id=owner_id)
+        query = ResourceRepository._apply_filters(
+            Resource.query,
+            status=status,
+            category=category,
+            owner_id=owner_id,
+            search=search,
+            location=location
+        )
         
         return query.count()
     

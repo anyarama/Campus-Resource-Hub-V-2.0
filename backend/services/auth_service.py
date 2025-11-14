@@ -6,8 +6,8 @@ Handles validation, user creation, and authentication workflows.
 
 import re
 from typing import Optional, Tuple, Dict, Any
-from backend.data_access.user_repository import UserRepository
-from backend.models.user import User
+from data_access.user_repository import UserRepository
+from models.user import User
 
 
 class AuthService:

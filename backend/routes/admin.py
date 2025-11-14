@@ -5,10 +5,10 @@ REST API endpoints for admin dashboard and management.
 
 from flask import Blueprint, request, jsonify
 from flask_login import current_user
-from backend.services.admin_service import AdminService
-from backend.services.review_service import ReviewService
-from backend.middleware.auth import admin_required
-from backend.extensions import limiter
+from services.admin_service import AdminService
+from services.review_service import ReviewService
+from middleware.auth import admin_required
+from extensions import limiter
 
 # Create admin blueprint
 admin_bp = Blueprint('admin', __name__)

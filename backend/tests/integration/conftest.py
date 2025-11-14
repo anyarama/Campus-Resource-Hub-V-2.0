@@ -5,18 +5,18 @@ Provides common test fixtures for end-to-end workflows.
 
 import pytest
 from datetime import datetime, timedelta
-from backend.models.user import User
-from backend.models.resource import Resource
-from backend.models.booking import Booking
-from backend.models.message import Message
-from backend.models.review import Review
-from backend.extensions import db
+from models.user import User
+from models.resource import Resource
+from models.booking import Booking
+from models.message import Message
+from models.review import Review
+from extensions import db
 
 
 @pytest.fixture
 def app():
     """Create and configure a test Flask application for integration tests."""
-    from backend.app import create_app
+    from app import create_app
     
     app = create_app()
     app.config.update({
@@ -61,116 +61,111 @@ def login_and_get_token(client, email: str, password: str):
     return response.json.get('csrf_token', '')
 
 
-@pytest.fixture
+@pytest.fixture(scope='function')
 def student_alice(app):
     """Create a student user named Alice for testing."""
-    with app.app_context():
-        user = User(
-            name='Alice Student',
-            email='alice@example.com',
-            password='AlicePass123!',
-            role='student'
-        )
-        db.session.add(user)
-        db.session.commit()
-        
-        return {
-            'id': user.id,
-            'name': user.name,
-            'email': user.email,
-            'password': 'AlicePass123!',
-            'role': 'student'
-        }
+    user = User(
+        name='Alice Student',
+        email='alice@example.com',
+        password='AlicePass123!',
+        role='student'
+    )
+    db.session.add(user)
+    db.session.commit()
+    
+    return {
+        'id': user.id,
+        'name': user.name,
+        'email': user.email,
+        'password': 'AlicePass123!',
+        'role': 'student'
+    }
 
 
-@pytest.fixture
+@pytest.fixture(scope='function')
 def student_bob(app):
     """Create a student user named Bob for testing."""
-    with app.app_context():
-        user = User(
-            name='Bob Student',
-            email='bob@example.com',
-            password='BobPass123!',
-            role='student'
-        )
-        db.session.add(user)
-        db.session.commit()
-        
-        return {
-            'id': user.id,
-            'name': user.name,
-            'email': user.email,
-            'password': 'BobPass123!',
-            'role': 'student'
-        }
+    user = User(
+        name='Bob Student',
+        email='bob@example.com',
+        password='BobPass123!',
+        role='student'
+    )
+    db.session.add(user)
+    db.session.commit()
+    
+    return {
+        'id': user.id,
+        'name': user.name,
+        'email': user.email,
+        'password': 'BobPass123!',
+        'role': 'student'
+    }
 
 
-@pytest.fixture
+@pytest.fixture(scope='function')
 def staff_charlie(app):
     """Create a staff user named Charlie for testing."""
-    with app.app_context():
-        user = User(
-            name='Charlie Staff',
-            email='charlie@example.com',
-            password='CharliePass123!',
-            role='staff'
-        )
-        db.session.add(user)
-        db.session.commit()
-        
-        return {
-            'id': user.id,
-            'name': user.name,
-            'email': user.email,
-            'password': 'CharliePass123!',
-            'role': 'staff'
-        }
+    user = User(
+        name='Charlie Staff',
+        email='charlie@example.com',
+        password='CharliePass123!',
+        role='staff'
+    )
+    db.session.add(user)
+    db.session.commit()
+    
+    return {
+        'id': user.id,
+        'name': user.name,
+        'email': user.email,
+        'password': 'CharliePass123!',
+        'role': 'staff'
+    }
 
 
-@pytest.fixture
+@pytest.fixture(scope='function')
 def admin_diana(app):
     """Create an admin user named Diana for testing."""
-    with app.app_context():
-        user = User(
-            name='Diana Admin',
-            email='diana@example.com',
-            password='DianaPass123!',
-            role='admin'
-        )
-        db.session.add(user)
-        db.session.commit()
-        
-        return {
-            'id': user.id,
-            'name': user.name,
-            'email': user.email,
-            'password': 'DianaPass123!',
-            'role': 'admin'
-        }
+    user = User(
+        name='Diana Admin',
+        email='diana@example.com',
+        password='DianaPass123!',
+        role='admin'
+    )
+    db.session.add(user)
+    db.session.commit()
+    
+    return {
+        'id': user.id,
+        'name': user.name,
+        'email': user.email,
+        'password': 'DianaPass123!',
+        'role': 'admin'
+    }
 
 
-@pytest.fixture
+@pytest.fixture(scope='function')
 def sample_resource(app, staff_charlie):
     """Create a sample resource owned by Charlie."""
-    with app.app_context():
-        resource = Resource(
-            owner_id=staff_charlie['id'],
-            title='Study Room A',
-            description='Quiet study room with whiteboard',
-            location='Library 2nd Floor',
-            category='study_room',
-            capacity=6
-        )
-        resource.status = 'published'
-        resource.requires_approval = True
-        db.session.add(resource)
-        db.session.commit()
-        
-        return {
-            'id': resource.id,
-            'title': resource.title,
-            'owner_id': resource.owner_id
-        }
+    resource = Resource(
+        owner_id=staff_charlie['id'],
+        title='Study Room A',
+        description='Quiet study room with whiteboard',
+        location='Library 2nd Floor',
+        category='study_room',
+        capacity=6
+    )
+    resource.status = 'published'
+    resource.requires_approval = True
+    db.session.add(resource)
+    db.session.commit()
+    
+    return {
+        'id': resource.id,
+        'title': resource.title,
+        'owner_id': resource.owner_id
+    }
 
 
 @pytest.fixture

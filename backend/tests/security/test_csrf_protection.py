@@ -5,8 +5,8 @@ Tests CSRF token generation, validation, and enforcement.
 
 import pytest
 from flask import session
-from backend.app import create_app
-from backend.extensions import db
+from app import create_app
+from extensions import db
 
 
 @pytest.fixture

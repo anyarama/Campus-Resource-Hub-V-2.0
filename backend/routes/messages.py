@@ -5,9 +5,9 @@ REST API endpoints for messaging system.
 
 from flask import Blueprint, request, jsonify
 from flask_login import current_user
-from backend.services.message_service import MessageService
-from backend.middleware.auth import login_required
-from backend.extensions import limiter
+from services.message_service import MessageService
+from middleware.auth import login_required
+from extensions import limiter
 
 # Create messages blueprint
 messages_bp = Blueprint('messages', __name__)

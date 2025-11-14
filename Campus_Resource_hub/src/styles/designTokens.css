@@ -1,0 +1,95 @@
+:root {
+  /* Brand colors */
+  --iu-crimson: #990000;
+  --iu-crimson-dark: #7a0000;
+  --iu-crimson-darker: #5a0000;
+  --iu-crimson-light: #b71c1c;
+  --iu-cream: #fbfaf9;
+  --iu-cream-dark: #f5f3f0;
+
+  /* Semantic colors */
+  --color-text-primary: #1e1e1e;
+  --color-text-secondary: #6e6e6e;
+  --color-text-tertiary: #9e9e9e;
+  --color-text-inverse: #ffffff;
+
+  --color-border-default: #e9e4dd;
+  --color-border-hover: #d4cfc4;
+  --color-border-focus: rgba(153, 0, 0, 0.3);
+  --color-border-error: #b71c1c;
+
+  --color-bg-default: #ffffff;
+  --color-bg-subtle: #fbfaf9;
+  --color-bg-hover: #f5f3f0;
+  --color-bg-error: #fff8f8;
+  --color-bg-success: #e8f5e9;
+  --color-bg-info: #fff3e0;
+
+  --color-error: #b71c1c;
+  --color-error-light: #ef5350;
+  --color-success: #1b5e20;
+  --color-success-light: #43a047;
+  --color-info: #e65100;
+  --color-info-light: #f57c00;
+
+  /* Typography scale */
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-base: 13px;
+  --text-md: 15px;
+  --text-lg: 18px;
+  --text-xl: 20px;
+  --text-2xl: 24px;
+  --text-3xl: 32px;
+
+  --line-height-tight: 1.2;
+  --line-height-normal: 1.4;
+  --line-height-relaxed: 1.6;
+
+  --letter-spacing-tight: -0.01em;
+  --letter-spacing-normal: 0;
+  --letter-spacing-wide: 0.02em;
+
+  /* Spacing scale */
+  --space-0: 0;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* Border radius */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-full: 9999px;
+
+  /* Shadows */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+
+  /* Focus + transitions */
+  --focus-ring-width: 2px;
+  --focus-ring-offset: 2px;
+  --focus-ring-color: rgba(153, 0, 0, 0.2);
+  --focus-ring-error: rgba(183, 28, 28, 0.2);
+
+  --transition-fast: 120ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-base: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slower: 400ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Component sizing */
+  --input-height: 40px;
+  --input-height-lg: 44px;
+  --button-height: 44px;
+}

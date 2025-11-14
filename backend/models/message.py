@@ -5,7 +5,7 @@ Supports threaded conversations related to bookings and resources.
 """
 
 from datetime import datetime
-from backend.extensions import db
+from extensions import db
 
 
 class Message(db.Model):

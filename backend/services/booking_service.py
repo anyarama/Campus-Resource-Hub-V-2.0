@@ -5,12 +5,12 @@ Handles validation, conflict detection, and approval workflows.
 """
 
 from typing import Optional, Tuple, List, Dict, Any
-from datetime import datetime, timedelta
-from backend.data_access.booking_repository import BookingRepository
-from backend.data_access.resource_repository import ResourceRepository
-from backend.models.booking import Booking
-from backend.models.resource import Resource
-from backend.models.user import User
+from datetime import datetime, timedelta, timezone
+from data_access.booking_repository import BookingRepository
+from data_access.resource_repository import ResourceRepository
+from models.booking import Booking
+from models.resource import Resource
+from models.user import User
 
 
 class BookingService:
@@ -85,6 +85,12 @@ class BookingService:
         Returns:
             Tuple[Optional[Booking], Optional[str]]: (booking, error_message)
         """
+        # Normalize datetimes to naive UTC for consistent comparisons/storage
+        if start_datetime.tzinfo is not None:
+            start_datetime = start_datetime.astimezone(timezone.utc).replace(tzinfo=None)
+        if end_datetime.tzinfo is not None:
+            end_datetime = end_datetime.astimezone(timezone.utc).replace(tzinfo=None)
+
         # Check if resource exists
         resource = ResourceRepository.get_by_id(resource_id)
         if not resource:

@@ -5,10 +5,18 @@ Handles environment-specific settings for development, testing, and production.
 
 import os
 from datetime import timedelta
+from typing import List, Union
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv()
+
+
+def _parse_origins(value: Union[str, List[str]]) -> List[str]:
+    """Normalize CORS origin configuration into a clean list."""
+    if isinstance(value, list):
+        return [origin.strip() for origin in value if origin and origin.strip()]
+    return [origin.strip() for origin in value.split(',') if origin.strip()]
 
 
 class Config:
@@ -35,6 +43,7 @@ class Config:
     
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = 'Lax'
+    SESSION_COOKIE_DOMAIN = 'localhost'  # Allow cookies to work across all localhost ports
     REMEMBER_COOKIE_HTTPONLY = True
     REMEMBER_COOKIE_DURATION = timedelta(days=30)
     
@@ -44,7 +53,15 @@ class Config:
     ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
     
     # CORS Settings
-    CORS_ORIGINS = os.environ.get('CORS_ORIGINS', 'http://localhost:5173').split(',')
+    _default_cors = (
+        'http://localhost:5173,'
+        'http://localhost:3000,'
+        'http://localhost:4000,'
+        'http://127.0.0.1:5173,'
+        'http://127.0.0.1:3000,'
+        'http://127.0.0.1:4000'
+    )
+    CORS_ORIGINS = _parse_origins(os.environ.get('CORS_ORIGINS', _default_cors))
     CORS_SUPPORTS_CREDENTIALS = True
     
     # Pagination
@@ -53,6 +70,10 @@ class Config:
     # AI Features (optional)
     OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
     ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY')
+
+    # Rate limiting (can be relaxed in development via env vars)
+    AUTH_REGISTRATION_RATE_LIMIT = os.environ.get('AUTH_REGISTRATION_RATE_LIMIT', '5 per 15 minutes')
+    AUTH_LOGIN_RATE_LIMIT = os.environ.get('AUTH_LOGIN_RATE_LIMIT', '10 per 15 minutes')
 
 
 class DevelopmentConfig(Config):

@@ -66,5 +66,5 @@ export async function completeBooking(id: number): Promise<ApiResponse> {
 export async function getMyBookings(
   filters?: Omit<BookingFilters, 'user_id'>
 ): Promise<ApiResponse<PaginatedResponse<Booking>>> {
-  return apiClient.get<PaginatedResponse<Booking>>('/bookings/my', filters);
+  return apiClient.get<PaginatedResponse<Booking>>('/bookings', filters);
 }

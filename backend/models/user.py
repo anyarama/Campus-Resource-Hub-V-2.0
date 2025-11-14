@@ -5,8 +5,9 @@ Supports three roles: Student, Staff, Admin.
 """
 
 from datetime import datetime
+import secrets
 from flask_login import UserMixin
-from backend.extensions import db, bcrypt
+from extensions import db, bcrypt
 
 
 class User(UserMixin, db.Model):
@@ -63,20 +64,23 @@ class User(UserMixin, db.Model):
     # Reviews written by this user
     reviews = db.relationship('Review', back_populates='reviewer', lazy='dynamic')
     
-    def __init__(self, name, email, password, role='student', department=None):
+    def __init__(self, name, email, password=None, role='student', department=None):
         """
         Initialize a new user.
         
         Args:
             name (str): User's full name
             email (str): User's email address (must be unique)
-            password (str): Plain text password (will be hashed)
+            password (str | None): Plain text password (will be hashed). If
+                omitted (e.g., in tests), a secure temporary password is
+                generated and should be updated before login.
             role (str): User role ('student', 'staff', 'admin')
             department (str): User's department (optional)
         """
         self.name = name
         self.email = email
-        self.set_password(password)
+        # Ensure password_hash is always populated so model invariants hold
+        self.set_password(password or self._generate_temp_password())
         self.role = role
         self.department = department
     
@@ -99,7 +103,13 @@ class User(UserMixin, db.Model):
         Returns:
             bool: True if password matches, False otherwise
         """
-        return bcrypt.check_password_hash(self.password_hash, password)
+        try:
+            return bcrypt.check_password_hash(self.password_hash, password)
+        except ValueError:
+            # Occurs if password_hash contains an invalid or legacy format
+            return False
+        except Exception:
+            return False
     
     def is_admin(self):
         """Check if user has admin role."""
@@ -145,3 +155,8 @@ class User(UserMixin, db.Model):
     def __repr__(self):
         """String representation of User."""
         return f'<User {self.email} ({self.role})>'
+
+    @staticmethod
+    def _generate_temp_password() -> str:
+        """Generate a secure temporary password (used when password omitted)."""
+        return secrets.token_urlsafe(16)

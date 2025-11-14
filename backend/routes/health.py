@@ -34,7 +34,7 @@ def database_health():
         JSON response with database connection status
     """
     try:
-        from backend.extensions import db
+        from extensions import db
         # Try to execute a simple query
         db.session.execute('SELECT 1')
         

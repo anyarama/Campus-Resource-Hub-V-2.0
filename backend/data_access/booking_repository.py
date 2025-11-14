@@ -7,10 +7,10 @@ Handles all database queries and operations for bookings.
 from typing import Optional, List
 from datetime import datetime
 from sqlalchemy import and_, or_
-from backend.extensions import db
-from backend.models.booking import Booking
-from backend.models.resource import Resource
-from backend.models.user import User
+from extensions import db
+from models.booking import Booking
+from models.resource import Resource
+from models.user import User
 
 
 class BookingRepository:

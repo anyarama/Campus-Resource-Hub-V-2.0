@@ -4,8 +4,8 @@ Tests for Flask-Talisman configuration and security header enforcement.
 """
 
 import pytest
-from backend.app import create_app
-from backend.extensions import db
+from app import create_app
+from extensions import db
 
 
 @pytest.fixture

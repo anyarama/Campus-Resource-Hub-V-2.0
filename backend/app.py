@@ -7,9 +7,9 @@ Uses the factory pattern for better testing and modularity.
 import os
 from flask import Flask, jsonify, request
 from flask_wtf.csrf import CSRFError
-from backend.config import get_config
-from backend.extensions import init_extensions
-from backend.utils.logger import logger, get_client_ip
+from config import get_config
+from extensions import init_extensions
+from utils.logger import logger, get_client_ip
 
 
 def create_app(config_name=None):
@@ -24,6 +24,7 @@ def create_app(config_name=None):
         Flask: Configured Flask application instance
     """
     # Create Flask app instance
+    # instance_path will default to ./instance (correct for local development)
     app = Flask(__name__, 
                 static_folder='static',
                 template_folder='templates')
@@ -38,7 +39,7 @@ def create_app(config_name=None):
     
     # Import models to ensure they're registered with SQLAlchemy
     # This must happen after extensions are initialized
-    from backend import models
+    import models
     
     # Register blueprints
     register_blueprints(app)
@@ -60,13 +61,13 @@ def register_blueprints(app):
         app: Flask application instance
     """
     # Import blueprints here to avoid circular imports
-    from backend.routes.health import health_bp
-    from backend.routes.auth import auth_bp
-    from backend.routes.resources import resources_bp
-    from backend.routes.bookings import bookings_bp
-    from backend.routes.messages import messages_bp
-    from backend.routes.reviews import reviews_bp
-    from backend.routes.admin import admin_bp
+    from routes.health import health_bp
+    from routes.auth import auth_bp
+    from routes.resources import resources_bp
+    from routes.bookings import bookings_bp
+    from routes.messages import messages_bp
+    from routes.reviews import reviews_bp
+    from routes.admin import admin_bp
     
     # Register blueprints
     app.register_blueprint(health_bp)
@@ -106,7 +107,7 @@ def register_error_handlers(app):
         })
         
         # Rollback database session on error
-        from backend.extensions import db
+        from extensions import db
         db.session.rollback()
         
         return jsonify({
@@ -177,14 +178,14 @@ def register_cli_commands(app):
     @app.cli.command('init-db')
     def init_db():
         """Initialize the database with tables."""
-        from backend.extensions import db
+        from extensions import db
         db.create_all()
         print('✓ Database initialized')
     
     @app.cli.command('seed-db')
     def seed_db():
         """Seed the database with sample data for development."""
-        from backend.extensions import db
+        from extensions import db
         # TODO: Implement seeding logic
         print('✓ Database seeded with sample data')
 

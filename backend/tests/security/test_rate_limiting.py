@@ -4,9 +4,9 @@ Tests for Flask-Limiter configuration and rate limit enforcement on auth endpoin
 """
 
 import pytest
-from backend.app import create_app
-from backend.extensions import db
-from backend.models.user import User
+from app import create_app
+from extensions import db
+from models.user import User
 
 
 @pytest.fixture
@@ -54,14 +54,14 @@ class TestRateLimitConfiguration:
     
     def test_rate_limiter_enabled(self, app):
         """Verify Flask-Limiter is enabled in the app."""
-        from backend.extensions import limiter
+        from extensions import limiter
         
         assert limiter is not None
         assert limiter._app is not None
     
     def test_default_limits_configured(self, app):
         """Verify default rate limits are set."""
-        from backend.extensions import limiter
+        from extensions import limiter
         
         # Check default limits exist
         assert limiter._default_limits is not None

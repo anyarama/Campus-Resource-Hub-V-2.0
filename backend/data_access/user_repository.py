@@ -6,8 +6,8 @@ Provides clean separation between database operations and business logic.
 
 from typing import Optional, List
 from sqlalchemy.exc import IntegrityError
-from backend.extensions import db
-from backend.models.user import User
+from extensions import db
+from models.user import User
 
 
 class UserRepository:

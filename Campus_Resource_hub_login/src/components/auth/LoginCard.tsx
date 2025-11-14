@@ -10,6 +10,7 @@ import { PasswordInput } from "./inputs/PasswordInput";
 import { AuthPrimaryButton } from "./buttons/AuthPrimaryButton";
 import { InlineLink } from "./links/InlineLink";
 import { FormFeedbackAlert } from "./alerts/FormFeedbackAlert";
+import { login } from "../../api/services/authService";
 
 interface LoginCardProps {
   onNavigateToSignUp?: () => void;
@@ -25,30 +26,33 @@ export function LoginCard({ onNavigateToSignUp, onSuccess }: LoginCardProps) {
   const [isSuccess, setIsSuccess] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     
-    // Validate email
-    if (!email.includes('@iu.edu')) {
-      setEmailError(true);
-      setShowErrorBanner(true);
-      return;
-    }
-
-    // Start loading
-    setIsLoading(true);
+    // Reset errors
     setShowErrorBanner(false);
     setEmailError(false);
+    setIsLoading(true);
     
-    // Simulate authentication
-    setTimeout(() => {
-      setIsLoading(false);
-      setIsSuccess(true);
+    try {
+      // Call real backend authentication
+      const response = await login({ email, password });
       
-      setTimeout(() => {
-        onSuccess?.({ email });
-      }, 800);
-    }, 1800);
+      // Success! The authService will handle redirect to localhost:3000
+      setIsSuccess(true);
+      onSuccess?.({ email });
+      
+      // Redirect happens automatically in authService.ts after successful login
+    } catch (error: any) {
+      setIsLoading(false);
+      setIsSuccess(false);
+      setShowErrorBanner(true);
+      
+      // Check if it's an email validation error
+      if (error.message && error.message.includes('email')) {
+        setEmailError(true);
+      }
+    }
   };
 
   return (

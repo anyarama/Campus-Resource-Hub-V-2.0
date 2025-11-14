@@ -19,12 +19,12 @@ Total expected tests: ~35
 
 import pytest
 from flask import Flask
-from backend.models.user import User
-from backend.models.resource import Resource
-from backend.models.booking import Booking
-from backend.models.message import Message
-from backend.models.review import Review
-from backend.extensions import db
+from models.user import User
+from models.resource import Resource
+from models.booking import Booking
+from models.message import Message
+from models.review import Review
+from extensions import db
 from datetime import datetime, timedelta
 
 
@@ -60,7 +60,7 @@ def login_user(client, email: str, password: str) -> str:
 @pytest.fixture
 def app():
     """Create and configure a test Flask application."""
-    from backend.app import create_app
+    from app import create_app
     
     app = create_app()
     app.config.update({

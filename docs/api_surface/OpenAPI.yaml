@@ -48,7 +48,17 @@ components:
       type: apiKey
       in: cookie
       name: session
-      description: Flask-Login session cookie
+      description: Flask-Login session cookie for authentication
+    
+    CSRFToken:
+      type: apiKey
+      in: header
+      name: X-CSRF-Token
+      description: |
+        CSRF protection token required for all state-changing operations (POST, PUT, PATCH, DELETE).
+        Obtain token from GET /api/auth/csrf-token endpoint.
+        Token lifetime: 1 hour
+        Alternative header name: X-CSRFToken
 
   schemas:
     User:
@@ -230,6 +240,48 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
+    ValidationError:
+      description: Request validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    RateLimitError:
+      description: Rate limit exceeded
+      headers:
+        X-RateLimit-Limit:
+          schema:
+            type: integer
+          description: Request limit per hour
+        X-RateLimit-Remaining:
+          schema:
+            type: integer
+          description: Remaining requests (will be 0)
+        X-RateLimit-Reset:
+          schema:
+            type: integer
+          description: Unix timestamp when limit resets
+        Retry-After:
+          schema:
+            type: integer
+          description: Seconds until retry allowed
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "Too Many Requests"
+              message:
+                type: string
+                example: "Rate limit exceeded. Please try again later."
+              retry_after:
+                type: string
+                example: "60 seconds"
+              status:
+                type: integer
+                example: 429
 
 paths:
   /auth/register:
@@ -373,6 +425,7 @@ paths:
       x-status: existing
       security:
         - SessionCookie: []
+        - CSRFToken: []
       requestBody:
         required: true
         content:
@@ -389,11 +442,63 @@ paths:
         '200':
           description: Password changed successfully
 
+  /auth/csrf-token:
+    get:
+      tags: [Authentication]
+      summary: Get CSRF token
+      x-status: existing
+      description: |
+        Obtain a CSRF token for state-changing requests.
+        Token is valid for 1 hour and must be included in X-CSRF-Token header
+        for all POST, PUT, PATCH, DELETE requests.
+      responses:
+        '200':
+          description: CSRF token returned
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  csrf_token:
+                    type: string
+                    example: "ImFhY2RlZjEyMzQ1Njc4OTAi..."
+
+  /auth/check-email:
+    post:
+      tags: [Authentication]
+      summary: Check email availability
+      x-status: existing
+      description: Check if an email address is already registered
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+                  format: email
+      responses:
+        '200':
+          description: Email availability status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  available:
+                    type: boolean
+
   /resources:
     get:
       tags: [Resources]
       summary: List resources with pagination and filters
       x-status: existing
+      description: |
+        Get a paginated list of resources with optional filters.
+        Rate limit: 50 per hour (default)
       parameters:
         - name: status
           in: query
@@ -426,6 +531,19 @@ paths:
       responses:
         '200':
           description: List of resources
+          headers:
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+              description: Request limit per hour
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+              description: Remaining requests in current window
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+              description: Unix timestamp when limit resets
           content:
             application/json:
               schema:
@@ -442,8 +560,12 @@ paths:
       tags: [Resources]
       summary: Create new resource
       x-status: existing
+      description: |
+        Create a new resource listing.
+        Rate limit: 20 per hour
       security:
         - SessionCookie: []
+        - CSRFToken: []
       requestBody:
         required: true
         content:
@@ -472,6 +594,16 @@ paths:
       responses:
         '201':
           description: Resource created
+          headers:
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+            X-RateLimit-Reset:
+              schema:
+                type: integer
           content:
             application/json:
               schema:
@@ -481,6 +613,18 @@ paths:
                     type: string
                   resource:
                     $ref: '#/components/schemas/Resource'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          description: CSRF validation failed or forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          $ref: '#/components/responses/RateLimitError'
 
   /resources/{id}:
     get:
@@ -509,6 +653,7 @@ paths:
       x-status: existing
       security:
         - SessionCookie: []
+        - CSRFToken: []
       parameters:
         - name: id
           in: path
@@ -539,6 +684,7 @@ paths:
       x-status: existing
       security:
         - SessionCookie: []
+        - CSRFToken: []
       parameters:
         - name: id
           in: path
@@ -641,8 +787,12 @@ paths:
       tags: [Bookings]
       summary: Create new booking
       x-status: existing
+      description: |
+        Create a new booking request.
+        Rate limit: 10 per hour
       security:
         - SessionCookie: []
+        - CSRFToken: []
       requestBody:
         required: true
         content:
@@ -664,8 +814,17 @@ paths:
       responses:
         '201':
           description: Booking created
+          headers:
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
         '409':
           description: Conflict (time slot unavailable)
+        '429':
+          $ref: '#/components/responses/RateLimitError'
 
   /bookings/{id}:
     get:
@@ -695,6 +854,7 @@ paths:
       x-status: existing
       security:
         - SessionCookie: []
+        - CSRFToken: []
       parameters:
         - name: id
           in: path
@@ -722,6 +882,7 @@ paths:
       x-status: existing
       security:
         - SessionCookie: []
+        - CSRFToken: []
       parameters:
         - name: id
           in: path
@@ -749,6 +910,7 @@ paths:
       x-status: existing
       security:
         - SessionCookie: []
+        - CSRFToken: []
       parameters:
         - name: id
           in: path
@@ -774,6 +936,7 @@ paths:
       x-status: existing
       security:
         - SessionCookie: []
+        - CSRFToken: []
       requestBody:
         required: true
         content:
@@ -834,8 +997,12 @@ paths:
       tags: [Messages]
       summary: Send message
       x-status: existing
+      description: |
+        Send a message to another user.
+        Rate limit: 30 per hour
       security:
         - SessionCookie: []
+        - CSRFToken: []
       requestBody:
         required: true
         content:
@@ -853,6 +1020,15 @@ paths:
       responses:
         '201':
           description: Message sent
+          headers:
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+        '429':
+          $ref: '#/components/responses/RateLimitError'
 
   /messages/thread/{threadId}:
     get:
@@ -907,8 +1083,12 @@ paths:
       tags: [Reviews]
       summary: Submit review
       x-status: existing
+      description: |
+        Submit a review for a resource.
+        Rate limit: 5 per hour
       security:
         - SessionCookie: []
+        - CSRFToken: []
       requestBody:
         required: true
         content:
@@ -930,6 +1110,15 @@ paths:
       responses:
         '201':
           description: Review submitted
+          headers:
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+        '429':
+          $ref: '#/components/responses/RateLimitError'
 
   /resources/{id}/reviews:
     get:
@@ -1031,6 +1220,7 @@ paths:
       x-status: existing
       security:
         - SessionCookie: []
+        - CSRFToken: []
       parameters:
         - name: id
           in: path

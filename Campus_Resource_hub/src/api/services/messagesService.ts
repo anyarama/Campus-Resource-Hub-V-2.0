@@ -12,7 +12,7 @@ import type { Message, MessageThread, PaginationParams, PaginatedResponse, Messa
 export async function getThreads(
   params?: PaginationParams
 ): Promise<ApiResponse<PaginatedResponse<MessageThread>>> {
-  return apiClient.get<PaginatedResponse<MessageThread>>('/messages/threads', params);
+  return apiClient.get<PaginatedResponse<MessageThread>>('/messages', params);
 }
 
 /**
@@ -22,7 +22,7 @@ export async function getThreadMessages(
   threadId: string,
   params?: PaginationParams
 ): Promise<ApiResponse<PaginatedResponse<Message>>> {
-  return apiClient.get<PaginatedResponse<Message>>(`/messages/threads/${threadId}`, params);
+  return apiClient.get<PaginatedResponse<Message>>(`/messages/thread/${threadId}`, params);
 }
 
 /**
@@ -41,9 +41,17 @@ export async function markMessageAsRead(id: number): Promise<ApiResponse> {
 
 /**
  * Mark all messages in thread as read
+ * Note: Backend doesn't have direct thread mark-as-read endpoint
+ * This is handled automatically when viewing a thread
  */
 export async function markThreadAsRead(threadId: string): Promise<ApiResponse> {
-  return apiClient.put(`/messages/threads/${threadId}/read`);
+  // Backend marks thread as read automatically when GET /messages/thread/:id is called
+  // This function is kept for API compatibility but returns a success response
+  return Promise.resolve({ 
+    data: { message: 'Thread marked as read automatically when viewing' },
+    success: true,
+    status: 200
+  });
 }
 
 /**

@@ -5,7 +5,7 @@ Users can review resources after completing bookings.
 """
 
 from datetime import datetime
-from backend.extensions import db
+from extensions import db
 
 
 class Review(db.Model):

@@ -6,9 +6,9 @@ REST API endpoints for booking management.
 from flask import Blueprint, request, jsonify
 from flask_login import current_user
 from datetime import datetime
-from backend.services.booking_service import BookingService
-from backend.middleware.auth import login_required
-from backend.extensions import limiter
+from services.booking_service import BookingService
+from middleware.auth import login_required
+from extensions import limiter
 
 # Create bookings blueprint
 bookings_bp = Blueprint('bookings', __name__)
@@ -206,6 +206,105 @@ def get_booking(booking_id):
         return jsonify({
             'error': 'Internal Server Error',
             'message': 'An error occurred while fetching the booking'
+        }), 500
+
+
+@bookings_bp.route('/<int:booking_id>/respond', methods=['POST'])
+@login_required
+def respond_to_booking(booking_id):
+    """
+    Respond to a pending booking (approve or reject).
+    
+    POST /api/bookings/:id/respond
+    
+    Requires: Authentication (resource owner, staff, or admin)
+    
+    Request Body:
+        {
+            "action": "approve" | "reject",
+            "notes": "Optional approval/rejection notes"
+        }
+    
+    Returns:
+        200: Booking responded to successfully
+        400: Invalid action or status
+        403: Not authorized
+        404: Booking not found
+    """
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({
+                'error': 'Bad Request',
+                'message': 'Request body is required'
+            }), 400
+        
+        action = data.get('action')
+        notes = data.get('notes')
+        
+        if not action:
+            return jsonify({
+                'error': 'Validation Error',
+                'message': 'action is required (approve or reject)'
+            }), 400
+        
+        if action not in ['approve', 'reject']:
+            return jsonify({
+                'error': 'Validation Error',
+                'message': 'action must be "approve" or "reject"'
+            }), 400
+        
+        if action == 'approve':
+            booking, error = BookingService.approve_booking(
+                booking_id=booking_id,
+                approver=current_user,
+                approval_notes=notes
+            )
+        else:  # reject
+            if not notes:
+                return jsonify({
+                    'error': 'Validation Error',
+                    'message': 'notes/rejection_reason is required for rejection'
+                }), 400
+            
+            booking, error = BookingService.reject_booking(
+                booking_id=booking_id,
+                approver=current_user,
+                rejection_reason=notes
+            )
+        
+        if error:
+            if 'not found' in error.lower():
+                return jsonify({
+                    'error': 'Not Found',
+                    'message': error
+                }), 404
+            elif 'permission' in error.lower():
+                return jsonify({
+                    'error': 'Forbidden',
+                    'message': error
+                }), 403
+            elif 'conflict' in error.lower():
+                return jsonify({
+                    'error': 'Conflict',
+                    'message': error
+                }), 409
+            else:
+                return jsonify({
+                    'error': 'Bad Request',
+                    'message': error
+                }), 400
+        
+        return jsonify({
+            'message': f'Booking {action}d successfully',
+            'booking': booking.to_dict()
+        }), 200
+    
+    except Exception as e:
+        return jsonify({
+            'error': 'Internal Server Error',
+            'message': f'An error occurred while responding to the booking: {str(e)}'
         }), 500
 
 

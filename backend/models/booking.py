@@ -5,7 +5,7 @@ Includes conflict detection and approval workflow.
 """
 
 from datetime import datetime
-from backend.extensions import db
+from extensions import db
 
 
 class Booking(db.Model):

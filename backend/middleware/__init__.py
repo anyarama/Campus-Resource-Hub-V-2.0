@@ -3,7 +3,7 @@ Middleware Package
 Contains authentication and authorization decorators.
 """
 
-from backend.middleware.auth import (
+from middleware.auth import (
     login_required,
     role_required,
     admin_required,

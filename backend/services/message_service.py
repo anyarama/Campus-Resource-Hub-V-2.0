@@ -5,10 +5,10 @@ Handles validation and thread management.
 """
 
 from typing import Optional, Tuple, List, Dict, Any
-from backend.data_access.message_repository import MessageRepository
-from backend.data_access.user_repository import UserRepository
-from backend.models.message import Message
-from backend.models.user import User
+from data_access.message_repository import MessageRepository
+from data_access.user_repository import UserRepository
+from models.message import Message
+from models.user import User
 
 
 class MessageService:

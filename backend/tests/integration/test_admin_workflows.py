@@ -5,7 +5,7 @@ Tests complete admin user journeys including moderation and analytics.
 
 import pytest
 from datetime import datetime, timedelta
-from backend.tests.integration.conftest import login_and_get_token
+from tests.integration.conftest import login_and_get_token
 
 
 class TestAdminModeration:

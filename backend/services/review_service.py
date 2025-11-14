@@ -6,11 +6,11 @@ Handles validation, rating system, and moderation.
 
 from typing import Optional, Tuple, List, Dict, Any
 from datetime import datetime, timedelta
-from backend.data_access.review_repository import ReviewRepository
-from backend.data_access.resource_repository import ResourceRepository
-from backend.data_access.booking_repository import BookingRepository
-from backend.models.review import Review
-from backend.models.user import User
+from data_access.review_repository import ReviewRepository
+from data_access.resource_repository import ResourceRepository
+from data_access.booking_repository import BookingRepository
+from models.review import Review
+from models.user import User
 
 
 class ReviewService:

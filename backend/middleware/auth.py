@@ -7,7 +7,7 @@ Provides decorators for protecting routes with authentication and role requireme
 from functools import wraps
 from flask import jsonify
 from flask_login import current_user
-from backend.services.auth_service import AuthService
+from services.auth_service import AuthService
 
 
 def login_required(f):

@@ -1,5 +1,8 @@
-import React, { useState } from 'react';
-import { Filter, Plus, Search, X, MapPin, Star } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Filter, Plus, Search, X, MapPin, Star, Loader2, AlertCircle } from 'lucide-react';
+import { getResources } from '../../api/services/resourcesService';
+import type { Resource, ResourceFilters as APIResourceFilters } from '../../api/types';
+import { toast } from 'sonner';
 import { CHButton } from '../ui/ch-button';
 import { CHInput } from '../ui/ch-input';
 import { CHBadge } from '../ui/ch-badge';
@@ -7,6 +10,8 @@ import { CHSheet } from '../ui/ch-sheet';
 import { CHSwitch } from '../ui/ch-switch';
 import { CHResourceCard } from '../ui/ch-resource-card';
 import { CHEmpty } from '../ui/ch-empty';
+import { ResourceFormModal } from '../modals/ResourceFormModal';
+import { ResourceDetailModal } from '../modals/ResourceDetailModal';
 
 /**
  * Resources Page
@@ -22,8 +27,18 @@ interface FilterState {
 }
 
 export function Resources() {
+  // API State
+  const [resources, setResources] = useState<Resource[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  // UI State
   const [searchQuery, setSearchQuery] = useState('');
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [editingResource, setEditingResource] = useState<Resource | undefined>();
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [selectedResource, setSelectedResource] = useState<Resource | null>(null);
   
   // Filter state
   const [filters, setFilters] = useState<FilterState>({
@@ -36,99 +51,40 @@ export function Resources() {
   // Temp filter state (used in sheet before applying)
   const [tempFilters, setTempFilters] = useState<FilterState>(filters);
   
-  // Sample resource data
-  const resources = [
-    {
-      id: 1,
-      image: 'https://images.unsplash.com/photo-1521587760476-6c12a4b040da?w=800&h=450&fit=crop',
-      category: 'Library',
-      title: 'Wells Library - Main Study Hall',
-      location: 'Wells Library, Floor 1',
-      rating: 4.8,
-      ratingCount: 234,
-      status: 'available' as const,
-    },
-    {
-      id: 2,
-      image: 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=800&h=450&fit=crop',
-      category: 'Lab',
-      title: 'Luddy Hall - Computer Science Lab 2150',
-      location: 'Luddy Hall, Floor 2',
-      rating: 4.9,
-      ratingCount: 156,
-      status: 'available' as const,
-    },
-    {
-      id: 3,
-      image: 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&h=450&fit=crop',
-      category: 'Study Room',
-      title: 'Student Union - Group Study Room A',
-      location: 'Student Union, Floor 2',
-      rating: 4.6,
-      ratingCount: 89,
-      status: 'unavailable' as const,
-    },
-    {
-      id: 4,
-      image: 'https://images.unsplash.com/photo-1497366811353-6870744d04b2?w=800&h=450&fit=crop',
-      category: 'Conference Room',
-      title: 'IMU Conference Center - Room B',
-      location: 'Indiana Memorial Union, Floor 3',
-      rating: 4.7,
-      ratingCount: 124,
-      status: 'available' as const,
-    },
-    {
-      id: 5,
-      image: 'https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?w=800&h=450&fit=crop',
-      category: 'Library',
-      title: 'Fine Arts Library - Reading Room',
-      location: 'Fine Arts Building, Floor 2',
-      rating: 4.9,
-      ratingCount: 78,
-      status: 'available' as const,
-    },
-    {
-      id: 6,
-      image: 'https://images.unsplash.com/photo-1517502884422-41eaead166d4?w=800&h=450&fit=crop',
-      category: 'Lab',
-      title: 'Chemistry Research Lab - East Wing',
-      location: 'Chemistry Building, Floor 3',
-      rating: 4.5,
-      ratingCount: 45,
-      status: 'unavailable' as const,
-    },
-    {
-      id: 7,
-      image: 'https://images.unsplash.com/photo-1497366754035-f200968a6e72?w=800&h=450&fit=crop',
-      category: 'Study Room',
-      title: 'Kelley School - MBA Study Lounge',
-      location: 'Kelley School of Business, Floor 1',
-      rating: 4.8,
-      ratingCount: 167,
-      status: 'available' as const,
-    },
-    {
-      id: 8,
-      image: 'https://images.unsplash.com/photo-1556761175-4b46a572b786?w=800&h=450&fit=crop',
-      category: 'Equipment',
-      title: 'AV Equipment - Projector & Screen Kit',
-      location: 'Media Services Center',
-      rating: 4.4,
-      ratingCount: 92,
-      status: 'available' as const,
-    },
-    {
-      id: 9,
-      image: 'https://images.unsplash.com/photo-1497366672149-e5e4b4d34eb3?w=800&h=450&fit=crop',
-      category: 'Conference Room',
-      title: 'Global & International Studies Building - Conference Suite',
-      location: 'GISB, Floor 4',
-      rating: 4.9,
-      ratingCount: 203,
-      status: 'available' as const,
-    },
-  ];
+  // Fetch resources from API
+  useEffect(() => {
+    fetchResources();
+  }, []);
+  
+  const fetchResources = async (customFilters?: APIResourceFilters) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      const apiFilters: APIResourceFilters = customFilters || {
+        available: filters.availability || undefined,
+        search: searchQuery || undefined,
+      };
+      
+      const response = await getResources(apiFilters);
+      
+      if (response.error) {
+        throw new Error(response.error);
+      }
+      
+      if (response.data) {
+        setResources(response.data.items || []);
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load resources';
+      setError(errorMessage);
+      toast.error('Error loading resources', {
+        description: errorMessage,
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
   
   // Category options
   const categoryOptions = [
@@ -247,8 +203,81 @@ export function Resources() {
     setFilterSheetOpen(true);
   };
   
+  // Debounce search query
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (!isLoading) {
+        fetchResources();
+      }
+    }, 500); // 500ms debounce
+    
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery]);
+  
+  // Apply filters when they change (no debounce for filters)
+  useEffect(() => {
+    if (!isLoading) {
+      fetchResources();
+    }
+  }, [filters]);
+  
   const filterChips = getFilterChips();
   const activeFilterCount = getActiveFilterCount();
+  
+  // Loading state
+  if (isLoading && resources.length === 0) {
+    return (
+      <div className="flex flex-col gap-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-h1 mb-1">Resources</h1>
+            <p className="text-caption text-fg-muted">
+              Browse and book campus resources including study rooms, labs, and equipment
+            </p>
+          </div>
+        </div>
+        
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <Loader2 className="w-8 h-8 animate-spin text-brand-crimson mx-auto mb-2" />
+            <p className="text-caption text-fg-muted">Loading resources...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
+  // Error state
+  if (error && resources.length === 0) {
+    return (
+      <div className="flex flex-col gap-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-h1 mb-1">Resources</h1>
+            <p className="text-caption text-fg-muted">
+              Browse and book campus resources including study rooms, labs, and equipment
+            </p>
+          </div>
+        </div>
+        
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center max-w-md">
+            <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
+              <AlertCircle className="w-8 h-8 text-red-600" />
+            </div>
+            <h3 className="text-h3 mb-2">Failed to Load Resources</h3>
+            <p className="text-caption text-fg-muted mb-4">{error}</p>
+            <CHButton
+              variant="primary"
+              onClick={() => fetchResources()}
+            >
+              Try Again
+            </CHButton>
+          </div>
+        </div>
+      </div>
+    );
+  }
   
   return (
     <div className="flex flex-col gap-6">
@@ -271,11 +300,17 @@ export function Resources() {
             <Filter className="w-4 h-4" />
             Filters
             {activeFilterCount > 0 && (
-              <CHBadge variant="info">{activeFilterCount}</CHBadge>
+              <CHBadge variant="info">
+                {activeFilterCount}
+              </CHBadge>
             )}
           </CHButton>
           
-          <CHButton variant="primary" size="md">
+          <CHButton 
+            variant="primary" 
+            size="md"
+            onClick={() => setCreateModalOpen(true)}
+          >
             <Plus className="w-4 h-4" />
             Create Resource
           </CHButton>
@@ -331,7 +366,25 @@ export function Resources() {
       
       {/* Resource Grid - 3-up desktop, 2-up tablet, 1-up mobile */}
       <section className="section-spacing">
-        {resources.length === 0 ? (
+        {isLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div key={i} className="animate-pulse">
+                <div className="bg-subtle rounded-lg overflow-hidden">
+                  <div className="aspect-video bg-[#EEEDEB]" />
+                  <div className="p-5 space-y-3">
+                    <div className="h-6 bg-[#EEEDEB] rounded w-3/4" />
+                    <div className="h-4 bg-[#EEEDEB] rounded w-1/2" />
+                    <div className="flex justify-between">
+                      <div className="h-4 bg-[#EEEDEB] rounded w-1/3" />
+                      <div className="h-4 bg-[#EEEDEB] rounded w-1/4" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : resources.length === 0 ? (
           <CHEmpty
             icon={<Search className="w-8 h-8 text-fg-muted" />}
             title="No resources found"
@@ -358,16 +411,25 @@ export function Resources() {
             {resources.map((resource) => (
               <CHResourceCard
                 key={resource.id}
-                image={resource.image}
-                category={resource.category}
-                title={resource.title}
+                image={resource.image_url || 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&h=450&fit=crop'}
+                category={resource.type.charAt(0).toUpperCase() + resource.type.slice(1)}
+                title={resource.name}
                 location={resource.location}
-                rating={resource.rating}
-                ratingCount={resource.ratingCount}
-                status={resource.status}
-                onClick={() => console.log('View resource:', resource.id)}
-                onView={() => console.log('Quick view:', resource.id)}
-                onEdit={() => console.log('Edit resource:', resource.id)}
+                rating={4.5} // TODO: Get from reviews when implemented
+                ratingCount={0} // TODO: Get from reviews when implemented
+                status={resource.available ? 'available' : 'unavailable'}
+                onClick={() => {
+                  setSelectedResource(resource);
+                  setDetailModalOpen(true);
+                }}
+                onView={() => {
+                  setSelectedResource(resource);
+                  setDetailModalOpen(true);
+                }}
+                onEdit={() => {
+                  setEditingResource(resource);
+                  setCreateModalOpen(true);
+                }}
                 onDuplicate={() => console.log('Duplicate resource:', resource.id)}
               />
             ))}
@@ -503,6 +565,40 @@ export function Resources() {
           </div>
         </div>
       </CHSheet>
+      
+      {/* Resource Form Modal */}
+      <ResourceFormModal
+        isOpen={createModalOpen}
+        onClose={() => {
+          setCreateModalOpen(false);
+          setEditingResource(undefined);
+        }}
+        onSuccess={() => {
+          fetchResources();
+          setEditingResource(undefined);
+        }}
+        resource={editingResource}
+      />
+      
+      {/* Resource Detail Modal */}
+      <ResourceDetailModal
+        isOpen={detailModalOpen}
+        onClose={() => {
+          setDetailModalOpen(false);
+          setSelectedResource(null);
+        }}
+        resource={selectedResource}
+        onEdit={() => {
+          setDetailModalOpen(false);
+          setEditingResource(selectedResource!);
+          setCreateModalOpen(true);
+        }}
+        onDelete={() => {
+          setDetailModalOpen(false);
+          setSelectedResource(null);
+          fetchResources();
+        }}
+      />
     </div>
   );
 }

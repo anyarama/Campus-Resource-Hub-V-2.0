@@ -5,7 +5,7 @@
 
 // Export API client
 export { apiClient } from './client';
-export type { ApiResponse, RequestOptions } from './client';
+export type { ApiResponse, ApiError, RequestOptions } from './client';
 
 // Export types
 export type {

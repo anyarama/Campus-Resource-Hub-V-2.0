@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   MoreVertical, 
   Download, 
@@ -8,6 +8,9 @@ import {
   Rows3,
   Rows4
 } from 'lucide-react';
+import { toast } from 'sonner';
+import { getUsers, updateUserStatus } from '../../api/services/adminService';
+import type { User as ApiUser } from '../../api/types';
 import { CHButton } from '../ui/ch-button';
 import { CHBadge } from '../ui/ch-badge';
 import { CHTable } from '../ui/ch-table';
@@ -32,9 +35,50 @@ type Density = 'comfortable' | 'compact';
 export function AdminUsers() {
   const [selectedRows, setSelectedRows] = useState<number[]>([]);
   const [density, setDensity] = useState<Density>('comfortable');
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState<number | null>(null);
   
-  // Sample user data
-  const users: User[] = [
+  // Fetch users from backend
+  useEffect(() => {
+    async function fetchUsers() {
+      setLoading(true);
+      setError(null);
+      
+      const response = await getUsers();
+      
+      if (response.error) {
+        const errorMessage = response.error || 'Failed to load users';
+        setError(errorMessage);
+        toast.error('Error loading users', {
+          description: errorMessage,
+        });
+      } else if (response.data) {
+        // Transform API users to match local interface
+        const transformedUsers: User[] = response.data.items.map((user: ApiUser) => ({
+          id: user.id,
+          name: user.full_name || user.username,
+          email: user.email,
+          role: user.role === 'admin' ? 'Admin' : user.role === 'staff' ? 'Staff' : 'Student',
+          status: user.status === 'inactive' ? 'pending' : user.status as 'active' | 'pending' | 'suspended',
+          created: new Date(user.created_at).toLocaleDateString('en-US', { 
+            year: 'numeric', 
+            month: 'short', 
+            day: 'numeric' 
+          }),
+        }));
+        setUsers(transformedUsers);
+      }
+      
+      setLoading(false);
+    }
+    
+    fetchUsers();
+  }, []);
+  
+  // Sample user data (fallback for when API is not available)
+  const fallbackUsers: User[] = [
     {
       id: 1,
       name: 'Sarah Johnson',
@@ -134,12 +178,68 @@ export function AdminUsers() {
   };
   
   // Bulk actions
-  const handleActivate = () => {
-    console.log('Activate users:', selectedRows);
+  const handleActivate = async () => {
+    if (selectedRows.length === 0) return;
+    
+    setActionLoading(-1); // -1 indicates bulk action
+    
+    try {
+      const promises = selectedRows.map(id => updateUserStatus(id, 'active'));
+      const results = await Promise.all(promises);
+      
+      const failures = results.filter(r => r.error);
+      
+      if (failures.length === 0) {
+        toast.success(`Activated ${selectedRows.length} user(s) successfully`);
+        // Update local state
+        setUsers(users.map(user => 
+          selectedRows.includes(user.id) 
+            ? { ...user, status: 'active' }
+            : user
+        ));
+        setSelectedRows([]);
+      } else {
+        toast.error('Some users could not be activated', {
+          description: `${failures.length} of ${selectedRows.length} failed`,
+        });
+      }
+    } catch (err) {
+      toast.error('Failed to activate users');
+    }
+    
+    setActionLoading(null);
   };
   
-  const handleSuspend = () => {
-    console.log('Suspend users:', selectedRows);
+  const handleSuspend = async () => {
+    if (selectedRows.length === 0) return;
+    
+    setActionLoading(-2); // -2 indicates bulk suspend
+    
+    try {
+      const promises = selectedRows.map(id => updateUserStatus(id, 'suspended'));
+      const results = await Promise.all(promises);
+      
+      const failures = results.filter(r => r.error);
+      
+      if (failures.length === 0) {
+        toast.success(`Suspended ${selectedRows.length} user(s) successfully`);
+        // Update local state
+        setUsers(users.map(user => 
+          selectedRows.includes(user.id) 
+            ? { ...user, status: 'suspended' }
+            : user
+        ));
+        setSelectedRows([]);
+      } else {
+        toast.error('Some users could not be suspended', {
+          description: `${failures.length} of ${selectedRows.length} failed`,
+        });
+      }
+    } catch (err) {
+      toast.error('Failed to suspend users');
+    }
+    
+    setActionLoading(null);
   };
   
   const handleExport = () => {
@@ -147,8 +247,29 @@ export function AdminUsers() {
   };
   
   // Row actions
-  const handleRowAction = (action: string, userId: number) => {
-    console.log(`${action} user:`, userId);
+  const handleRowAction = async (action: string, userId: number) => {
+    if (action === 'suspend') {
+      setActionLoading(userId);
+      
+      const response = await updateUserStatus(userId, 'suspended');
+      
+      if (response.error) {
+        toast.error('Failed to suspend user', {
+          description: response.error,
+        });
+      } else {
+        toast.success('User suspended successfully');
+        // Update local state
+        setUsers(users.map(user => 
+          user.id === userId ? { ...user, status: 'suspended' } : user
+        ));
+      }
+      
+      setActionLoading(null);
+    } else {
+      // Other actions not yet implemented
+      toast.info(`${action} functionality coming soon`);
+    }
   };
   
   // Cell padding based on density
@@ -156,6 +277,25 @@ export function AdminUsers() {
   
   return (
     <div className="min-h-screen bg-canvas">
+      {/* Loading State */}
+      {loading && (
+        <div className="flex items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-iu-crimson"></div>
+        </div>
+      )}
+      
+      {/* Error State */}
+      {error && !loading && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 m-6">
+          <p className="text-sm text-red-800">
+            Failed to load users. Please try refreshing the page.
+          </p>
+        </div>
+      )}
+      
+      {/* Main Content */}
+      {!loading && !error && (
+      <>
       {/* Admin Header - Normalized spacing */}
       <header className="bg-surface border-b border-default px-6 lg:px-8 py-8">
         <div className="max-w-[1400px] mx-auto">
@@ -225,23 +365,33 @@ export function AdminUsers() {
           </p>
           
           <div className="flex items-center gap-2">
-            <CHButton
-              variant="secondary"
-              size="sm"
-              onClick={handleActivate}
-            >
-              <UserCheck className="w-4 h-4" />
-              Activate
-            </CHButton>
-            
-            <CHButton
-              variant="secondary"
-              size="sm"
-              onClick={handleSuspend}
-            >
-              <UserX className="w-4 h-4" />
-              Suspend
-            </CHButton>
+              <CHButton
+                variant="secondary"
+                size="sm"
+                onClick={handleActivate}
+                disabled={actionLoading === -1}
+              >
+                {actionLoading === -1 ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
+                ) : (
+                  <UserCheck className="w-4 h-4" />
+                )}
+                Activate
+              </CHButton>
+              
+              <CHButton
+                variant="secondary"
+                size="sm"
+                onClick={handleSuspend}
+                disabled={actionLoading === -2}
+              >
+                {actionLoading === -2 ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
+                ) : (
+                  <UserX className="w-4 h-4" />
+                )}
+                Suspend
+              </CHButton>
             
             <CHButton
               variant="secondary"
@@ -317,8 +467,15 @@ export function AdminUsers() {
             render: (user: User) => (
               <CHDropdown
                 trigger={
-                  <button className="p-1 hover:bg-subtle rounded transition-colors">
-                    <MoreVertical className="w-4 h-4 text-fg-muted" />
+                  <button 
+                    className="p-1 hover:bg-subtle rounded transition-colors"
+                    disabled={actionLoading === user.id}
+                  >
+                    {actionLoading === user.id ? (
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
+                    ) : (
+                      <MoreVertical className="w-4 h-4 text-fg-muted" />
+                    )}
                   </button>
                 }
                 items={[
@@ -343,6 +500,8 @@ export function AdminUsers() {
         }}
         getRowId={(user: User) => String(user.id)}
       />
+      </>
+      )}
     </div>
   );
 }

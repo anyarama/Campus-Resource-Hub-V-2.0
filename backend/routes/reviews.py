@@ -5,9 +5,9 @@ REST API endpoints for review and rating system.
 
 from flask import Blueprint, request, jsonify
 from flask_login import current_user
-from backend.services.review_service import ReviewService
-from backend.middleware.auth import login_required
-from backend.extensions import limiter
+from services.review_service import ReviewService
+from middleware.auth import login_required
+from extensions import limiter
 
 # Create reviews blueprint
 reviews_bp = Blueprint('reviews', __name__)

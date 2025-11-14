@@ -19,10 +19,8 @@ export function AuthLogin({ onNavigateToSignUp }: AuthLoginProps) {
   const handleSuccess = (data: { email: string }) => {
     setShowSuccessToast(true);
     
-    // Redirect to dashboard after animation
-    setTimeout(() => {
-      setShowDashboard(true);
-    }, 2000);
+    // authService.ts will handle the redirect to localhost:3000
+    // No need to show dashboard preview - user will be redirected automatically
   };
 
   if (showDashboard) {

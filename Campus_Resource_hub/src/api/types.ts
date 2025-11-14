@@ -3,6 +3,21 @@
  * Shared types for API requests and responses
  */
 
+// API Response and Error Types
+export interface ApiResponse<T = any> {
+  data?: T;
+  error?: string;
+  message?: string;
+  status: number;
+}
+
+export interface ApiError {
+  message: string;
+  status: number;
+  code?: string;
+  details?: any;
+}
+
 // User Types
 export interface User {
   id: number;
@@ -186,6 +201,7 @@ export interface SignupData {
   role?: 'student' | 'staff';
   department?: string;
   phone?: string;
+  name?: string;
 }
 
 export interface ResourceFormData {

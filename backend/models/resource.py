@@ -6,7 +6,7 @@ Examples: study rooms, labs, equipment, event spaces.
 
 from datetime import datetime
 import json
-from backend.extensions import db
+from extensions import db
 
 
 class Resource(db.Model):
@@ -59,8 +59,8 @@ class Resource(db.Model):
     bookings = db.relationship('Booking', back_populates='resource', lazy='dynamic', cascade='all, delete-orphan')
     reviews = db.relationship('Review', back_populates='resource', lazy='dynamic', cascade='all, delete-orphan')
     
-    def __init__(self, owner_id, title, description=None, category=None, location=None, 
-                 capacity=None, requires_approval=False):
+    def __init__(self, owner_id, title=None, description=None, category=None, location=None, 
+                 capacity=None, requires_approval=False, name=None, status='draft'):
         """
         Initialize a new resource.
         
@@ -72,14 +72,20 @@ class Resource(db.Model):
             location (str): Physical location
             capacity (int): Maximum capacity
             requires_approval (bool): Whether bookings need approval
+            name (str): Legacy alias for title (maintained for backward compatibility)
+            status (str): Initial resource status (defaults to 'draft')
         """
         self.owner_id = owner_id
-        self.title = title
+        resolved_title = title or name
+        if not resolved_title:
+            raise ValueError("Resource title is required")
+        self.title = resolved_title
         self.description = description
         self.category = category
         self.location = location
         self.capacity = capacity
         self.requires_approval = requires_approval
+        self.status = status
     
     def set_images(self, image_paths):
         """
@@ -194,3 +200,13 @@ class Resource(db.Model):
     def __repr__(self):
         """String representation of Resource."""
         return f'<Resource {self.title} ({self.category})>'
+
+    @property
+    def name(self):
+        """Legacy compatibility alias for title."""
+        return self.title
+
+    @name.setter
+    def name(self, value):
+        """Update resource title via legacy name setter."""
+        self.title = value

@@ -1,5 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Calendar, Users, Package, TrendingUp, CheckCircle2, Clock } from 'lucide-react';
+import { toast } from 'sonner';
+import { getAnalytics } from '../../api/services/adminService';
+import type { SystemAnalytics } from '../../api/types';
 import { AdminLayout, KPIRow } from '../AdminLayout';
 import { KPICard } from '../KPICard';
 import { ChartCard, ChartContainer, ChartFooter, ChartLegend } from '../ChartCard';
@@ -8,8 +11,6 @@ import { IUButton } from '../IUButton';
 import {
   LineChart,
   Line,
-  DoughnutChart,
-  Doughnut,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -104,6 +105,56 @@ const recentActivity = [
 
 export function AdminDashboard() {
   const [bookingsTimeRange, setBookingsTimeRange] = useState<'week' | 'month' | 'quarter' | 'year'>('week');
+  const [analytics, setAnalytics] = useState<SystemAnalytics | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  // Fetch analytics data on mount
+  useEffect(() => {
+    async function fetchAnalytics() {
+      setLoading(true);
+      setError(null);
+      
+      const response = await getAnalytics();
+      
+      if (response.error) {
+        const errorMessage = response.error || 'Failed to load analytics';
+        setError(errorMessage);
+        toast.error('Error loading dashboard', {
+          description: errorMessage,
+        });
+      } else if (response.data) {
+        setAnalytics(response.data);
+      }
+      
+      setLoading(false);
+    }
+    
+    fetchAnalytics();
+  }, []);
+  
+  // Transform resource breakdown for chart
+  const categoryData = analytics?.resource_breakdown 
+    ? Object.entries(analytics.resource_breakdown).map(([name, value], index) => {
+        const colors = [
+          'var(--iu-crimson)',
+          'var(--iu-crimson-300)',
+          'var(--iu-accent)',
+          'var(--iu-crimson-100)',
+          'var(--iu-neutral-300)'
+        ];
+        return {
+          name: name.charAt(0).toUpperCase() + name.slice(1),
+          value,
+          color: colors[index % colors.length]
+        };
+      })
+    : categoryBreakdown;
+  
+  // Calculate utilization rate
+  const utilizationRate = analytics 
+    ? Math.round((analytics.active_bookings / Math.max(analytics.total_bookings, 1)) * 100)
+    : 78;
   
   const handleApprove = (id: string) => {
     console.log('Approve:', id);
@@ -121,43 +172,65 @@ export function AdminDashboard() {
       breadcrumbs={[{ label: 'Admin' }, { label: 'Dashboard' }]}
     >
       <div className="flex flex-col gap-6">
-        {/* KPI Cards - 4 tiles in responsive grid */}
-        <KPIRow>
-          <KPICard
-            icon={Calendar}
-            label="Total Bookings"
-            value="1,247"
-            deltaDirection="up"
-            deltaValue="+18%"
-            period="vs last month"
-          />
-          <KPICard
-            icon={Users}
-            label="Active Users"
-            value="892"
-            deltaDirection="up"
-            deltaValue="+12%"
-            period="vs last month"
-          />
-          <KPICard
-            icon={Package}
-            label="Resources"
-            value="156"
-            deltaDirection="up"
-            deltaValue="+5%"
-            period="vs last month"
-          />
-          <KPICard
-            icon={TrendingUp}
-            label="Utilization"
-            value="78%"
-            deltaDirection="down"
-            deltaValue="-3%"
-            period="vs last month"
-          />
-        </KPIRow>
+        {/* Loading State */}
+        {loading && (
+          <div className="flex items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-iu-crimson"></div>
+          </div>
+        )}
+        
+        {/* Error State */}
+        {error && !loading && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+            <p className="text-sm text-red-800">
+              Failed to load dashboard data. Please try refreshing the page.
+            </p>
+          </div>
+        )}
+        
+        {/* Dashboard Content */}
+        {!loading && !error && analytics && (
+          <>
+            {/* KPI Cards - 4 tiles in responsive grid */}
+            <KPIRow>
+              <KPICard
+                icon={Calendar}
+                label="Total Bookings"
+                value={analytics.total_bookings.toLocaleString()}
+                deltaDirection="up"
+                deltaValue="+18%"
+                period="vs last month"
+              />
+              <KPICard
+                icon={Users}
+                label="Active Users"
+                value={analytics.total_users.toLocaleString()}
+                deltaDirection="up"
+                deltaValue="+12%"
+                period="vs last month"
+              />
+              <KPICard
+                icon={Package}
+                label="Resources"
+                value={analytics.total_resources.toLocaleString()}
+                deltaDirection="up"
+                deltaValue="+5%"
+                period="vs last month"
+              />
+              <KPICard
+                icon={TrendingUp}
+                label="Utilization"
+                value={`${utilizationRate}%`}
+                deltaDirection={utilizationRate >= 75 ? "up" : "down"}
+                deltaValue={utilizationRate >= 75 ? "+3%" : "-3%"}
+                period="vs last month"
+              />
+            </KPIRow>
+          </>
+        )}
         
         {/* Chart Cards - 2 charts side by side on desktop */}
+        {!loading && !error && analytics && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Bookings Over Time - Line Chart */}
           <ChartCard
@@ -226,32 +299,32 @@ export function AdminDashboard() {
           
           {/* Category Breakdown - Doughnut Chart */}
           <ChartCard
-            title="Category Breakdown"
+            title="Resource Breakdown by Type"
             showTimeRangeSelector={false}
             footer={
               <ChartFooter
                 stats={[
-                  { label: 'Total Categories', value: '5' },
-                  { label: 'Most Popular', value: 'Study Rooms' },
+                  { label: 'Total Categories', value: categoryData.length.toString() },
+                  { label: 'Most Popular', value: categoryData[0]?.name || 'N/A' },
                 ]}
-                lastUpdated="5 minutes ago"
+                lastUpdated="Just now"
               />
             }
           >
             <ChartContainer height="280px">
               <div className="flex flex-col h-full">
                 <ChartLegend
-                  items={categoryBreakdown.map(cat => ({
+                  items={categoryData.map(cat => ({
                     label: cat.name,
                     color: cat.color,
-                    value: `${cat.value}%`
+                    value: String(cat.value)
                   }))}
                 />
                 <div className="flex-1">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
-                        data={categoryBreakdown}
+                        data={categoryData}
                         cx="50%"
                         cy="50%"
                         innerRadius={60}
@@ -259,7 +332,7 @@ export function AdminDashboard() {
                         paddingAngle={2}
                         dataKey="value"
                       >
-                        {categoryBreakdown.map((entry, index) => (
+                        {categoryData.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.color} />
                         ))}
                       </Pie>
@@ -279,8 +352,10 @@ export function AdminDashboard() {
             </ChartContainer>
           </ChartCard>
         </div>
+        )}
         
         {/* List Cards - Pending Approvals & Recent Activity */}
+        {!loading && !error && analytics && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Pending Approvals */}
           <ListCard
@@ -335,6 +410,7 @@ export function AdminDashboard() {
             </div>
           </ListCard>
         </div>
+        )}
       </div>
     </AdminLayout>
   );

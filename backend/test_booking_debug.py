@@ -2,10 +2,10 @@
 Debug script to test booking creation
 """
 from datetime import datetime, timedelta
-from backend.app import create_app
-from backend.models.user import User
-from backend.models.resource import Resource
-from backend.extensions import db
+from app import create_app
+from models.user import User
+from models.resource import Resource
+from extensions import db
 
 app = create_app()
 app.config.update({

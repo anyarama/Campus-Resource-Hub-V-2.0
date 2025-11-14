@@ -5,6 +5,7 @@ import { Toaster } from './components/ui/sonner';
 import { Dashboard } from './components/pages/Dashboard';
 import { Resources } from './components/pages/Resources';
 import { MyBookings } from './components/pages/MyBookings';
+import { Messages } from './components/pages/Messages';
 import { Bookings } from './components/pages/Bookings';
 import { AdminUsers } from './components/pages/AdminUsers';
 import { AdminAnalytics } from './components/pages/AdminAnalytics';
@@ -25,11 +26,29 @@ import { CampusHubTokens } from './components/pages/CampusHubTokens';
 import { CampusHubLibrary } from './components/pages/CampusHubLibrary';
 import { BrandAssets } from './components/pages/BrandAssets';
 import { ComponentShowcase } from './components/pages/ComponentShowcase';
+import { Login } from './components/pages/Login';
+import { Signup } from './components/pages/Signup';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 
-export default function App() {
+function AppContent() {
+  const { isAuthenticated, loading } = useAuth();
   const [activePage, setActivePage] = useState('dashboard');
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
+  
+  // If not authenticated and not on auth pages, redirect to login
+  useEffect(() => {
+    if (!loading && !isAuthenticated && activePage !== 'login' && activePage !== 'signup') {
+      setActivePage('login');
+    }
+  }, [isAuthenticated, loading, activePage]);
+  
+  // If authenticated and on auth pages, redirect to dashboard
+  useEffect(() => {
+    if (!loading && isAuthenticated && (activePage === 'login' || activePage === 'signup')) {
+      setActivePage('dashboard');
+    }
+  }, [isAuthenticated, loading, activePage]);
   
   // Apply dark mode class to document
   useEffect(() => {
@@ -149,6 +168,10 @@ export default function App() {
   
   const renderPage = () => {
     switch (activePage) {
+      case 'login':
+        return <Login onNavigateToSignUp={() => setActivePage('signup')} />;
+      case 'signup':
+        return <Signup onNavigateToLogin={() => setActivePage('login')} />;
       case 'nav-qa':
         return <NavQA />;
       case 'layout-qa':
@@ -174,14 +197,7 @@ export default function App() {
       case 'admin-moderation':
         return <AdminModeration />;
       case 'messages':
-        return (
-          <div className="flex items-center justify-center h-96">
-            <div className="text-center">
-              <h3 className="text-iu-primary mb-2">Messages</h3>
-              <p className="text-iu-secondary">Messages feature coming soon...</p>
-            </div>
-          </div>
-        );
+        return <Messages />;
       case 'reviews':
         return (
           <div className="flex items-center justify-center h-96">
@@ -236,6 +252,35 @@ export default function App() {
   
   const currentConfig = pageConfig[activePage] || pageConfig['design-system'];
   
+  // Show loading state while checking auth
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-iu-crimson mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // If on login/signup page, show only the auth UI (no sidebar/topbar)
+  if (activePage === 'login' || activePage === 'signup') {
+    return (
+      <>
+        <Toaster 
+          position="top-right"
+          duration={6000}
+          pauseWhenPageIsHidden
+          closeButton
+          richColors
+        />
+        {renderPage()}
+      </>
+    );
+  }
+
+  // Main app with sidebar and topbar
   return (
     <div className="flex min-h-screen bg-iu-bg">
       {/* Toast notifications */}
@@ -307,5 +352,13 @@ export default function App() {
         </footer>
       </div>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }

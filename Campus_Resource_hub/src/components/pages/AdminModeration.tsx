@@ -1,10 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   CheckCircle, 
   MoreVertical,
   AlertTriangle,
   Filter
 } from 'lucide-react';
+import { toast } from 'sonner';
+import { getFlaggedReviews, hideReview } from '../../api/services/adminService';
+import type { Review } from '../../api/types';
 import { CHButton } from '../ui/ch-button';
 import { CHBadge } from '../ui/ch-badge';
 import { CHCard, CHCardContent, CHCardHeader, CHCardTitle } from '../ui/ch-card';
@@ -29,9 +32,51 @@ interface ModerationItem {
 
 export function AdminModeration() {
   const [selectedItems, setSelectedItems] = useState<number[]>([]);
+  const [items, setItems] = useState<ModerationItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState<number | null>(null);
   
-  // Sample moderation data
-  const items: ModerationItem[] = [
+  // Fetch flagged reviews from backend
+  useEffect(() => {
+    async function fetchFlaggedContent() {
+      setLoading(true);
+      setError(null);
+      
+      const response = await getFlaggedReviews();
+      
+      if (response.error) {
+        const errorMessage = response.error || 'Failed to load flagged content';
+        setError(errorMessage);
+        toast.error('Error loading moderation queue', {
+          description: errorMessage,
+        });
+      } else if (response.data) {
+        // Transform API reviews to moderation items
+        const transformedItems: ModerationItem[] = response.data.items.map((review: Review) => ({
+          id: review.id,
+          title: `Review for ${review.resource?.name || 'Unknown Resource'}`,
+          type: 'Review' as const,
+          reason: review.is_flagged ? 'Flagged Content' : 'Under Review',
+          reasonSeverity: 'medium' as const,
+          reporter: review.user?.full_name || review.user?.username || 'Unknown',
+          date: new Date(review.created_at).toLocaleDateString('en-US', { 
+            year: 'numeric', 
+            month: 'short', 
+            day: 'numeric' 
+          }),
+        }));
+        setItems(transformedItems);
+      }
+      
+      setLoading(false);
+    }
+    
+    fetchFlaggedContent();
+  }, []);
+  
+  // Sample moderation data (fallback)
+  const fallbackItems: ModerationItem[] = [
     {
       id: 1,
       title: 'Inappropriate review comment for Wells Library Study Room',
@@ -122,17 +167,79 @@ export function AdminModeration() {
   };
   
   // Bulk resolve
-  const handleBulkResolve = () => {
-    console.log('Bulk resolve items:', selectedItems);
+  const handleBulkResolve = async () => {
+    if (selectedItems.length === 0) return;
+    
+    setActionLoading(-1); // -1 indicates bulk action
+    
+    try {
+      const promises = selectedItems.map(id => hideReview(id));
+      const results = await Promise.all(promises);
+      
+      const failures = results.filter(r => r.error);
+      
+      if (failures.length === 0) {
+        toast.success(`Resolved ${selectedItems.length} item(s) successfully`);
+        // Remove resolved items from list
+        setItems(items.filter(item => !selectedItems.includes(item.id)));
+        setSelectedItems([]);
+      } else {
+        toast.error('Some items could not be resolved', {
+          description: `${failures.length} of ${selectedItems.length} failed`,
+        });
+      }
+    } catch (err) {
+      toast.error('Failed to resolve items');
+    }
+    
+    setActionLoading(null);
   };
   
   // Item actions
-  const handleItemAction = (action: string, itemId: number) => {
-    console.log(`${action} item:`, itemId);
+  const handleItemAction = async (action: string, itemId: number) => {
+    if (action === 'resolve') {
+      setActionLoading(itemId);
+      
+      const response = await hideReview(itemId);
+      
+      if (response.error) {
+        toast.error('Failed to resolve item', {
+          description: response.error,
+        });
+      } else {
+        toast.success('Item resolved successfully');
+        // Remove item from list
+        setItems(items.filter(item => item.id !== itemId));
+      }
+      
+      setActionLoading(null);
+    } else {
+      // Other actions not yet implemented
+      toast.info(`${action} functionality coming soon`);
+    }
   };
   
   return (
     <div className="min-h-screen bg-canvas">
+      {/* Loading State */}
+      {loading && (
+        <div className="flex items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-iu-crimson"></div>
+        </div>
+      )}
+      
+      {/* Error State */}
+      {error && !loading && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 m-6">
+          <p className="text-sm text-red-800">
+            Failed to load moderation queue. Please try refreshing the page.
+          </p>
+        </div>
+      )}
+      
+      {/* Main Content */}
+      {!loading && !error && (
+      <>
       {/* Admin Header - Normalized spacing */}
       <header className="bg-surface border-b border-default px-6 lg:px-8 py-8">
         <div className="max-w-[1400px] mx-auto">
@@ -169,8 +276,13 @@ export function AdminModeration() {
                 variant="primary"
                 size="md"
                 onClick={handleBulkResolve}
+                disabled={actionLoading === -1}
               >
-                <CheckCircle className="w-4 h-4" />
+                {actionLoading === -1 ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
+                ) : (
+                  <CheckCircle className="w-4 h-4" />
+                )}
                 Resolve Selected
               </CHButton>
             </div>
@@ -296,8 +408,13 @@ export function AdminModeration() {
                                       focus-visible:outline-none focus-visible:ring-2 
                                       focus-visible:ring-brand-crimson focus-visible:ring-offset-2"
                                     aria-label="Item actions"
+                                    disabled={actionLoading === item.id}
                                   >
-                                    <MoreVertical className="w-4 h-4 text-fg-muted" />
+                                    {actionLoading === item.id ? (
+                                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
+                                    ) : (
+                                      <MoreVertical className="w-4 h-4 text-fg-muted" />
+                                    )}
                                   </button>
                                 }
                                 items={[
@@ -333,6 +450,8 @@ export function AdminModeration() {
           </CHCard>
         </div>
       </main>
+      </>
+      )}
     </div>
   );
 }

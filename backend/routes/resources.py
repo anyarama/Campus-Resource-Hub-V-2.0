@@ -5,9 +5,9 @@ REST API endpoints for resource management.
 
 from flask import Blueprint, request, jsonify
 from flask_login import current_user
-from backend.services.resource_service import ResourceService
-from backend.middleware.auth import login_required, optional_auth
-from backend.extensions import limiter
+from services.resource_service import ResourceService
+from middleware.auth import login_required, optional_auth
+from extensions import limiter
 
 # Create resources blueprint
 resources_bp = Blueprint('resources', __name__)
@@ -501,4 +501,49 @@ def get_popular_resources():
         return jsonify({
             'error': 'Internal Server Error',
             'message': 'An error occurred while fetching popular resources'
+        }), 500
+
+
+@resources_bp.route('/<int:resource_id>/reviews', methods=['GET'])
+def get_resource_reviews_alias(resource_id):
+    """
+    Get all reviews for a resource (RESTful endpoint).
+    
+    GET /api/resources/:id/reviews?page=1&per_page=20
+    
+    This is a more RESTful alias for /api/reviews/resources/:id/reviews
+    
+    Query Parameters:
+        page: Page number (default: 1)
+        per_page: Items per page (default: 20, max: 50)
+    
+    Returns:
+        200: List of reviews with average rating
+        400: Invalid parameters
+    """
+    try:
+        from services.review_service import ReviewService
+        
+        # Get query parameters
+        page = int(request.args.get('page', 1))
+        per_page = min(int(request.args.get('per_page', 20)), 50)
+        
+        # Get reviews
+        result = ReviewService.get_resource_reviews(
+            resource_id=resource_id,
+            page=page,
+            per_page=per_page
+        )
+        
+        return jsonify(result), 200
+    
+    except ValueError:
+        return jsonify({
+            'error': 'Bad Request',
+            'message': 'Invalid page or per_page value'
+        }), 400
+    except Exception as e:
+        return jsonify({
+            'error': 'Internal Server Error',
+            'message': 'An error occurred while fetching reviews'
         }), 500

@@ -7,7 +7,7 @@ import pytest
 import threading
 import time
 from datetime import datetime, timedelta
-from backend.tests.integration.conftest import login_and_get_token
+from tests.integration.conftest import login_and_get_token
 
 
 class TestConcurrentBookings:
@@ -119,8 +119,8 @@ class TestConcurrentResourceCreation:
         """Test multiple staff users creating resources simultaneously"""
         # Create another staff user
         with app.app_context():
-            from backend.models.user import User
-            from backend.extensions import db
+            from models.user import User
+            from extensions import db
             
             staff2 = User(
                 name='David Staff',

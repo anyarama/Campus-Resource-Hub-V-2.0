@@ -7,8 +7,8 @@ Handles all database queries for messages and threads.
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 from sqlalchemy import or_, and_, func
-from backend.extensions import db
-from backend.models.message import Message
+from extensions import db
+from models.message import Message
 
 
 class MessageRepository:
@@ -48,15 +48,15 @@ class MessageRepository:
                 thread_id += f"_resource_{resource_id}"
         
         message = Message(
-            thread_id=thread_id,
             sender_id=sender_id,
             receiver_id=receiver_id,
             content=content,
+            thread_id=thread_id,
             booking_id=booking_id,
-            resource_id=resource_id,
-            is_read=False,
-            timestamp=datetime.utcnow()
+            resource_id=resource_id
         )
+        # is_read defaults to False in the model
+        # timestamp defaults to datetime.utcnow() in the model
         
         db.session.add(message)
         db.session.commit()

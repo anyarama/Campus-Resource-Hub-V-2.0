@@ -4,7 +4,7 @@ Tests for input validation and sanitization utilities.
 """
 
 import pytest
-from backend.utils.validators import (
+from utils.validators import (
     InputValidator,
     InputSanitizer,
     validate_request_data

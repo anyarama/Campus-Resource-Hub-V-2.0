@@ -7,8 +7,8 @@ Handles all database queries for reviews and ratings.
 from typing import Optional, List
 from datetime import datetime
 from sqlalchemy import func
-from backend.extensions import db
-from backend.models.review import Review
+from extensions import db
+from models.review import Review
 
 
 class ReviewRepository:
@@ -295,7 +295,7 @@ class ReviewRepository:
         Args:
             resource_id: Resource ID
         """
-        from backend.models.resource import Resource
+        from models.resource import Resource
         
         resource = Resource.query.get(resource_id)
         if not resource:

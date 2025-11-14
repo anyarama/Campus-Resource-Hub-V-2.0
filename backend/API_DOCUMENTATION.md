@@ -8,14 +8,45 @@
 
 ## Table of Contents
 
-1. [Authentication](#authentication)
-2. [Resources Management](#resources-management)
-3. [Bookings System](#bookings-system)
-4. [Messaging System](#messaging-system)
-5. [Reviews System](#reviews-system)
-6. [Admin Dashboard](#admin-dashboard)
-7. [Health Check](#health-check)
-8. [Error Codes](#error-codes)
+1. [Security Overview](#security-overview)
+2. [Authentication](#authentication)
+3. [Resources Management](#resources-management)
+4. [Bookings System](#bookings-system)
+5. [Messaging System](#messaging-system)
+6. [Reviews System](#reviews-system)
+7. [Admin Dashboard](#admin-dashboard)
+8. [Health Check](#health-check)
+9. [Error Codes](#error-codes)
+10. [Security Requirements](#security-requirements)
+
+---
+
+## Security Overview
+
+### 🔒 Security Status: PRODUCTION-READY
+
+All API endpoints are protected by multiple layers of security implemented in Phase 0:
+
+| Security Feature | Status | Documentation |
+|------------------|--------|---------------|
+| **CSRF Protection** | ✅ Active | All POST/PUT/PATCH/DELETE require `X-CSRF-Token` header |
+| **Rate Limiting** | ✅ Active | Endpoint-specific limits prevent abuse |
+| **Security Headers** | ✅ Active | CSP, HSTS, X-Frame-Options, etc. |
+| **Session Security** | ✅ Active | HTTPOnly, Secure cookies (production) |
+| **Input Validation** | ✅ Active | All inputs sanitized and validated |
+| **Audit Logging** | ✅ Active | Security events logged |
+
+**📖 Detailed Security Guide:** See `docs/API_SECURITY_GUIDE.md` for comprehensive security documentation.
+
+### Quick Security Checklist
+
+Before making API requests, ensure you:
+- ✅ Use HTTPS in production
+- ✅ Obtain CSRF token from `/api/auth/csrf-token`
+- ✅ Include `X-CSRF-Token` header in all state-changing requests
+- ✅ Handle rate limit errors (429) gracefully
+- ✅ Store session cookies securely (HTTPOnly)
+- ✅ Never expose credentials in logs or error messages
 
 ---
 
@@ -749,11 +780,116 @@ Response: 200 OK
 
 ---
 
-## Rate Limiting
+## Security Requirements
 
-Not yet implemented. Consider adding rate limiting in production:
-- Authentication: 5 attempts per minute
-- API calls: 100 requests per minute per user
+### CSRF Protection 🔒
+
+**Status:** ✅ ACTIVE - All state-changing requests require CSRF tokens
+
+#### 1. Obtain CSRF Token
+
+**Endpoint:** `GET /api/auth/csrf-token`
+
+```bash
+curl http://localhost:5000/api/auth/csrf-token
+```
+
+**Response:**
+```json
+{
+  "csrf_token": "ImFhY2RlZjEyMzQ1Njc4OTAi..."
+}
+```
+
+#### 2. Include Token in Requests
+
+All POST, PUT, PATCH, DELETE requests must include the CSRF token in the header:
+
+```bash
+curl -X POST http://localhost:5000/api/resources \
+  -H "Content-Type: application/json" \
+  -H "X-CSRF-Token: ImFhY2RlZjEyMzQ1Njc4OTAi..." \
+  -H "Cookie: session=..." \
+  -d '{"title": "New Resource"}'
+```
+
+**Alternative Header:** `X-CSRFToken` (both formats accepted)
+
+#### 3. CSRF Error Response
+
+**Missing or Invalid Token:**
+```json
+{
+  "error": "CSRF Validation Failed",
+  "message": "CSRF token missing or invalid. Please refresh and try again.",
+  "status": 403
+}
+```
+
+**HTTP Status:** `403 Forbidden`
+
+### Rate Limiting 🚦
+
+**Status:** ✅ ACTIVE - Endpoint-specific limits enforced
+
+| Endpoint | Method | Rate Limit | Purpose |
+|----------|--------|------------|---------|
+| `/api/auth/register` | POST | 5 per 15 minutes | Prevent account spam |
+| `/api/auth/login` | POST | 10 per 15 minutes | Brute force protection |
+| `/api/auth/change-password` | POST | 3 per hour | High-sensitivity operation |
+| `/api/resources` | POST | 20 per hour | Prevent resource spam |
+| `/api/bookings` | POST | 10 per hour | Prevent booking abuse |
+| `/api/messages` | POST | 30 per hour | Prevent message spam |
+| `/api/reviews` | POST | 5 per hour | Prevent review manipulation |
+| `/api/admin/*` | ALL | 100 per hour | Admin operations |
+| **All Other Endpoints** | ALL | 50/hour, 200/day | General protection |
+
+#### Rate Limit Headers
+
+All responses include rate limit information:
+
+```http
+X-RateLimit-Limit: 10
+X-RateLimit-Remaining: 8
+X-RateLimit-Reset: 1642089600
+```
+
+#### Rate Limit Exceeded Response
+
+```json
+{
+  "error": "Too Many Requests",
+  "message": "Rate limit exceeded. Please try again later.",
+  "retry_after": "60 seconds",
+  "status": 429
+}
+```
+
+**HTTP Status:** `429 Too Many Requests`
+
+### Security Headers 🛡️
+
+**Status:** ✅ ACTIVE - All responses include security headers
+
+| Header | Value | Protection |
+|--------|-------|------------|
+| `Content-Security-Policy` | `default-src 'self'; ...` | XSS, injection attacks |
+| `Strict-Transport-Security` | `max-age=31536000` | SSL stripping (prod only) |
+| `X-Content-Type-Options` | `nosniff` | MIME sniffing attacks |
+| `X-Frame-Options` | `DENY` | Clickjacking |
+| `X-XSS-Protection` | `1; mode=block` | Legacy XSS protection |
+| `Referrer-Policy` | `strict-origin-when-cross-origin` | Privacy protection |
+
+### Session Security 🍪
+
+All session cookies include security flags:
+
+| Flag | Development | Production | Purpose |
+|------|-------------|------------|---------|
+| `HTTPOnly` | ✅ True | ✅ True | Prevent JavaScript access |
+| `Secure` | ❌ False | ✅ True | HTTPS-only transmission |
+| `SameSite` | Lax | Strict | CSRF protection |
+| `Max-Age` | 30 days | 30 days | "Remember Me" duration |
 
 ---
 

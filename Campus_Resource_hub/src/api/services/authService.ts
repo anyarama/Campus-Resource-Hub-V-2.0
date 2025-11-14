@@ -19,7 +19,7 @@ export async function login(credentials: LoginCredentials): Promise<ApiResponse<
   
   // Store user data in session storage on successful login
   if (response.data?.user) {
-    sessionStorage.setItem('user', JSON.stringify(response.data.user));
+    apiClient.setCurrentUser(response.data.user);
   }
   
   return response;
@@ -29,11 +29,18 @@ export async function login(credentials: LoginCredentials): Promise<ApiResponse<
  * Sign up a new user
  */
 export async function signup(data: SignupData): Promise<ApiResponse<AuthResponse>> {
-  const response = await apiClient.post<AuthResponse>('/auth/signup', data);
+  const payload = {
+    name: data.full_name || data.username || data.name || '',
+    email: data.email,
+    password: data.password,
+    role: data.role ?? 'student',
+    department: data.department || undefined,
+  };
+
+  const response = await apiClient.post<AuthResponse>('/auth/register', payload);
   
-  // Store user data in session storage on successful signup
   if (response.data?.user) {
-    sessionStorage.setItem('user', JSON.stringify(response.data.user));
+    apiClient.setCurrentUser(response.data.user);
   }
   
   return response;
@@ -45,8 +52,8 @@ export async function signup(data: SignupData): Promise<ApiResponse<AuthResponse
 export async function logout(): Promise<ApiResponse> {
   const response = await apiClient.post('/auth/logout');
   
-  // Clear session storage
-  apiClient.clearAuthToken();
+  // Clear session storage and CSRF token
+  apiClient.clearSession();
   
   return response;
 }
@@ -66,7 +73,7 @@ export async function updateProfile(data: Partial<User>): Promise<ApiResponse<Us
   
   // Update user data in session storage
   if (response.data) {
-    sessionStorage.setItem('user', JSON.stringify(response.data));
+    apiClient.setCurrentUser(response.data);
   }
   
   return response;
@@ -93,21 +100,14 @@ export async function requestPasswordReset(email: string): Promise<ApiResponse> 
  * Get user from session storage
  */
 export function getUserFromStorage(): User | null {
-  const userStr = sessionStorage.getItem('user');
-  if (!userStr) return null;
-  
-  try {
-    return JSON.parse(userStr) as User;
-  } catch {
-    return null;
-  }
+  return apiClient.getCurrentUser();
 }
 
 /**
  * Check if user is authenticated
  */
 export function isAuthenticated(): boolean {
-  return apiClient.hasAuthToken() && !!getUserFromStorage();
+  return apiClient.isAuthenticated();
 }
 
 /**

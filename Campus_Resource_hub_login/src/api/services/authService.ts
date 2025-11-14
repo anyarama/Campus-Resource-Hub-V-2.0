@@ -17,9 +17,14 @@ interface AuthResponse {
 export async function login(credentials: LoginCredentials): Promise<ApiResponse<AuthResponse>> {
   const response = await apiClient.post<AuthResponse>('/auth/login', credentials);
   
-  // Store user data in session storage on successful login
-  if (response.data?.user) {
-    sessionStorage.setItem('user', JSON.stringify(response.data.user));
+  // Store user data and redirect to main app on successful login
+  if(response.data?.user) {
+    apiClient.setCurrentUser(response.data.user);
+    
+    // Redirect to main app after successful login
+    setTimeout(() => {
+      window.location.href = 'http://localhost:3000';
+    }, 1000);
   }
   
   return response;
@@ -31,9 +36,14 @@ export async function login(credentials: LoginCredentials): Promise<ApiResponse<
 export async function signup(data: SignupData): Promise<ApiResponse<AuthResponse>> {
   const response = await apiClient.post<AuthResponse>('/auth/signup', data);
   
-  // Store user data in session storage on successful signup
+  // Store user data and redirect to main app on successful signup
   if (response.data?.user) {
-    sessionStorage.setItem('user', JSON.stringify(response.data.user));
+    apiClient.setCurrentUser(response.data.user);
+    
+    // Redirect to main app after successful signup
+    setTimeout(() => {
+      window.location.href = 'http://localhost:3000';
+    }, 1000);
   }
   
   return response;
@@ -45,8 +55,8 @@ export async function signup(data: SignupData): Promise<ApiResponse<AuthResponse
 export async function logout(): Promise<ApiResponse> {
   const response = await apiClient.post('/auth/logout');
   
-  // Clear session storage
-  apiClient.clearAuthToken();
+  // Clear session storage and CSRF token
+  apiClient.clearSession();
   
   return response;
 }
@@ -66,7 +76,7 @@ export async function updateProfile(data: Partial<User>): Promise<ApiResponse<Us
   
   // Update user data in session storage
   if (response.data) {
-    sessionStorage.setItem('user', JSON.stringify(response.data));
+    apiClient.setCurrentUser(response.data);
   }
   
   return response;
@@ -93,21 +103,14 @@ export async function requestPasswordReset(email: string): Promise<ApiResponse> 
  * Get user from session storage
  */
 export function getUserFromStorage(): User | null {
-  const userStr = sessionStorage.getItem('user');
-  if (!userStr) return null;
-  
-  try {
-    return JSON.parse(userStr) as User;
-  } catch {
-    return null;
-  }
+  return apiClient.getCurrentUser();
 }
 
 /**
  * Check if user is authenticated
  */
 export function isAuthenticated(): boolean {
-  return apiClient.hasAuthToken() && !!getUserFromStorage();
+  return apiClient.isAuthenticated();
 }
 
 /**

@@ -17,11 +17,11 @@ import pytest
 import time
 from datetime import datetime, timedelta
 from flask import session
-from backend.app import create_app
-from backend.extensions import db
-from backend.models.user import User
-from backend.models.resource import Resource
-from backend.models.booking import Booking
+from app import create_app
+from extensions import db
+from models.user import User
+from models.resource import Resource
+from models.booking import Booking
 
 
 @pytest.fixture
